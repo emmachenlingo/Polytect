@@ -17,7 +17,7 @@ BiocManager::install("Polytect")
 #GitHub installation
 install.packages("devtools")
 library(devtools)
-install_github("DIGPCR/Polytect", host = "https://github.ugent.be/api/v3")
+install_github("emmachenlingo/Polytect")
 ```
 
 ## Examples
