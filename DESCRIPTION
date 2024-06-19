@@ -22,8 +22,7 @@ Imports:
     tidyverse,
     cowplot,
     mlrMBO,
-    DiceKriging,
-    Rdpack
+    DiceKriging
 Suggests: 
     testthat (>= 3.0.0),
     knitr,
