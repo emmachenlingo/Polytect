@@ -58,6 +58,13 @@ target_conc<-conc_cal(result,sampvol=0.91,volmix=20,voltemp=20,type="2color")
 print(target_conc)
 ```
 
+## Session Information
+
+The following information was obtained from the R session that generated this vignette:
+
+```{r session_info, eval = FALSE}
+sessionInfo()
+```
 
 ## References
 
