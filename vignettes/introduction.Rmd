@@ -22,14 +22,6 @@ Digital PCR (dPCR) is a state-of-the-art quantification method of target nucleic
 We developed a novel method, `Polytect`, that relies on crude cluster results from flowPeaks, previously shown to offer good partition classification performance, and subsequently refines flowPeaks' results by cluster merging and automatic cluster labeling, exploiting the prior knowledge on cluster center locations. 
 
 
-## Installation
-`Polytect` can be directly downloaded from Bioconductor.
-```{r install, warning=FALSE, message=FALSE, results='hide'}
-if (!requireNamespace("BiocManager", quietly=TRUE))
-    install.packages("BiocManager")
-BiocManager::install("Polytect")
-```
-
 ## Examples
 To demonstrate the core functions of this package, we will use the HR digital PCR dataset, which can be accessed using the command data(HR). The HR dataset is a data frame consisting of 18,233 rows and 2 columns. The clustering analysis can be performed using the following commands.
 
