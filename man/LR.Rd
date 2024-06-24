@@ -6,16 +6,19 @@
 \title{LR data}
 \format{
 A data frame of fluorescence intensities in each channel. Each row represents each partitions, and each column each channel.
-barely separable on x-axis; development of genotyping assays for plants various; primers/probes and conditions for each target are evaluated.
+barely separable on x-axis.
 \describe{
-\item{channel1}{channel 1}
-\item{channel2}{channel 2}
+\item{channel1}{fluorescence intensities of color 1}
+\item{channel2}{fluorescence intensities of color 2}
 }
 }
 \usage{
 LR
 }
 \description{
-A low-resolution 2-d dPCR data
+A low-resolution 2-color dPCR data of development of genotyping assays for plants various
+}
+\examples{
+data(LR)
 }
 \keyword{datasets}

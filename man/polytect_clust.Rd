@@ -2,7 +2,7 @@
 % Please edit documentation in R/polytect_clust.R
 \name{polytect_clust}
 \alias{polytect_clust}
-\title{General function for flowpeaks and merging}
+\title{Main function for clustering}
 \usage{
 polytect_clust(
   data,
@@ -37,7 +37,8 @@ to be modified for special assays such as competing assays.}
 A data frame containing the original fluorescence intensity and the cluster labels.
 }
 \description{
-General function for flowpeaks and merging
+This is the main function for clustering. The function will start with flowPeaks, then merge the excess clusters. It will
+return a data frame of fluorescence intensities and partition labels.
 }
 \examples{
 data(HR)

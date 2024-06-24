@@ -2,22 +2,23 @@
 % Please edit documentation in R/polytect_plot.R
 \name{polytect_plot}
 \alias{polytect_plot}
-\title{plotting function}
+\title{Plotting function for clustering results}
 \usage{
 polytect_plot(df_data)
 }
 \arguments{
 \item{df_data}{A data frame containing partition fluorescence intensities and corresponding cluster label. This can be the output
-of \code{polytect_merge} or any data frame containing the above information.}
+of \code{polytect_clust} and \code{polytect_merge} or any data frame containing the above information.}
 }
 \value{
-2-d plots.
+2-color plots.
 }
 \description{
-plotting function
+This function takes results from polytect_clust and polytect_merge, or a data frame containing flurescence intensities and partition
+labels. It will output all combination of 2-color plots.
 }
 \examples{
 data(HR)
-df_data<-polytect_merge(HR,4)
+df_data<-polytect_clust(HR,4)
 polytect_plot(df_data)
 }

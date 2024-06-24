@@ -2,22 +2,23 @@
 % Please edit documentation in R/sil_plot.R
 \name{sil_plot}
 \alias{sil_plot}
-\title{plotting function}
+\title{Plotting function for silhouette coefficients}
 \usage{
 sil_plot(df_data)
 }
 \arguments{
 \item{df_data}{A data frame containing partition fluorescence intensities and corresponding cluster label. This can be the output
-of \code{polytect_merge} or any data frame containing the above information.}
+of \code{polytect_clust} and \code{polytect_merge} or any data frame containing the above information.}
 }
 \value{
 plot of silhouette coefficients for each cluster.
 }
 \description{
-plotting function
+This function takes results from polytect_clust and polytect_merge, or a data frame containing flurescence intensities and partition
+labels. It will output the silhouette coefficients of each cluster.
 }
 \examples{
 data(HR)
-df_data<-polytect_merge(HR,4)
+df_data<-polytect_clust(HR,4)
 sil_plot(df_data)
 }

@@ -1,11 +1,14 @@
-#' plotting function
+#' Plotting function for clustering results
+#' 
+#' This function takes results from polytect_clust and polytect_merge, or a data frame containing flurescence intensities and partition 
+#' labels. It will output all combination of 2-color plots.
 #'
 #' @param df_data A data frame containing partition fluorescence intensities and corresponding cluster label. This can be the output
-#' of \code{polytect_merge} or any data frame containing the above information.
-#' @return 2-d plots.
+#' of \code{polytect_clust} and \code{polytect_merge} or any data frame containing the above information.
+#' @return 2-color plots.
 #' @examples
 #' data(HR)
-#' df_data<-polytect_merge(HR,4)
+#' df_data<-polytect_clust(HR,4)
 #' polytect_plot(df_data)
 #' @export
 polytect_plot<-function(df_data){

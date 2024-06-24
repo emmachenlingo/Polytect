@@ -21,10 +21,11 @@ of \code{polytect_merge} or any data frame containing the above information.}
 3-color and 3-target. "4-color" is chosen when there are 4 colors.}
 }
 \value{
-a data frame of the summary of cluster centers, cluster sizes and cluster silhouette coefficients.
+a data frame of target concentration.
 }
 \description{
-concentration calculation function
+This function takes a data frame of fluorescence intensities and partition clusters as input. It can be results from polytect_clust or
+polytect_merge. It will give the target concentration as output.
 }
 \examples{
 data(HR)

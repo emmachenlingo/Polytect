@@ -1,7 +1,10 @@
-#' summary function
+#' Summary function
 #'
+#' This function takes results from polytect_clust and polytect_merge, or a data frame containing flurescence intensities and partition 
+#' labels. It will summarise cluster centers, cluster sizes and cluster silhouette coefficients.
+#' 
 #' @param df_data A data frame containing partition fluorescence intensities and corresponding cluster label. This can be the output
-#' of \code{polytect_clust} or any data frame containing the above information.
+#' of \code{polytect_clust} and \code{polytect_merge} or any data frame containing the above information.
 #' @return a data frame of the summary of cluster centers, cluster sizes and cluster silhouette coefficients.
 #' @examples
 #' data(HR)

@@ -2,19 +2,20 @@
 % Please edit documentation in R/polytect_summary.R
 \name{polytect_summary}
 \alias{polytect_summary}
-\title{summary function}
+\title{Summary function}
 \usage{
 polytect_summary(df_data)
 }
 \arguments{
 \item{df_data}{A data frame containing partition fluorescence intensities and corresponding cluster label. This can be the output
-of \code{polytect_clust} or any data frame containing the above information.}
+of \code{polytect_clust} and \code{polytect_merge} or any data frame containing the above information.}
 }
 \value{
 a data frame of the summary of cluster centers, cluster sizes and cluster silhouette coefficients.
 }
 \description{
-summary function
+This function takes results from polytect_clust and polytect_merge, or a data frame containing flurescence intensities and partition
+labels. It will summarise cluster centers, cluster sizes and cluster silhouette coefficients.
 }
 \examples{
 data(HR)

@@ -2,7 +2,7 @@
 % Please edit documentation in R/polytect_merge.R
 \name{polytect_merge}
 \alias{polytect_merge}
-\title{General function for merging based on any initial clustering}
+\title{Function for merging}
 \usage{
 polytect_merge(
   data,
@@ -18,7 +18,7 @@ polytect_merge(
 
 \item{cluster_num}{The expected maximum number of clusters.}
 
-\item{base_clust}{A list that contains partition labels.}
+\item{base_clust}{A list that contains partition labels given by initial clustering.}
 
 \item{type}{The assay design, including the number of channels and targets. \code{type}=c("2color",
 "2colorHO","3color","4color"). "2color" is chosen when there are 2 colors and 2 targets. "2colorHO" means higher-order 2-color data (2 color and 3 targets). "3color" means
@@ -28,9 +28,13 @@ polytect_merge(
 A data frame containing the original fluorescence intensity and the cluster labels.
 }
 \description{
-General function for merging based on any initial clustering
+This function takes the clustering result as input. Users can first perform any clustering algorithm, then use this function. It
+will return a data frame of fluorescence intensities and partition labels.
 }
 \examples{
 data(HR)
-polytect_merge(HR, 4, hc)
+dist_matrix <- dist(HR)
+hc <- hclust(dist_matrix, method = "ward.D2")
+hc_clusters <- cutree(hc, k = 6)
+polytect_merge(HR, 4, hc_clusters)
 }

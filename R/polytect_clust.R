@@ -1,4 +1,7 @@
-#' General function for flowpeaks and merging
+#' Main function for clustering
+#' 
+#' This is the main function for clustering. The function will start with flowPeaks, then merge the excess clusters. It will
+#' return a data frame of fluorescence intensities and partition labels.
 #'
 #' @import flowPeaks
 #' @import ggplot2

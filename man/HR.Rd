@@ -6,10 +6,10 @@
 \title{HR data}
 \format{
 A data frame of fluorescence intensities in each channel. Each row represents each partitions, and each column each channel.
-good separation but some crosstalk; RPP30 genomic DNA assay
+good separation but some crosstalk.
 \describe{
-\item{channel1}{channel 1}
-\item{channel2}{channel 2}
+\item{channel1}{fluorescence intensities of color 1}
+\item{channel2}{fluorescence intensities of color 2}
 }
 }
 \source{
@@ -19,6 +19,9 @@ good separation but some crosstalk; RPP30 genomic DNA assay
 HR
 }
 \description{
-A high-resolution 2-d dPCR data
+A high-resolution 2-color dPCR data of RPP30 genomic DNA assay
+}
+\examples{
+data(HR)
 }
 \keyword{datasets}

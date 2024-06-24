@@ -1,5 +1,8 @@
 #' concentration calculation function
 #'
+#' This function takes a data frame of fluorescence intensities and partition clusters as input. It can be results from polytect_clust or
+#' polytect_merge. It will give the target concentration as output.
+#'
 #' @param df_data A data frame containing partition fluorescence intensities and corresponding cluster label. This can be the output
 #' of \code{polytect_merge} or any data frame containing the above information.
 #' @param sampvol The sample volume in microliters (µL)
@@ -8,7 +11,7 @@
 #' @param type The assay design, including the number of channels and targets. \code{type}=c("2color",
 #' "2colorHO","3color","4color"). "2color" is chosen when there are 2 colors and 2 targets. "2colorHO" means higher-order 2-color data (2 color and 3 targets). "3color" means
 #' 3-color and 3-target. "4-color" is chosen when there are 4 colors.
-#' @return a data frame of the summary of cluster centers, cluster sizes and cluster silhouette coefficients.
+#' @return a data frame of target concentration.
 #' @examples
 #' data(HR)
 #' df_data<-polytect_clust(HR,4)
