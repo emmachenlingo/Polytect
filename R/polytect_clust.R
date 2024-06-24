@@ -60,7 +60,7 @@ polytect_clust<-function(data,cluster_num,type="2color",fp_par="default",fp_opti
   if(type=='2color'){
     result<-HMM_merge(data_input,cluster_num=4,base_clust=fp_parse,eps=10^(-10),max_iter=1000,lambdas=lambdas[1:2],coefs=coefs[1:2])
   } else if(type=="2colorHO"){
-    result<-HMM_merge_higher_order(data_input,base_clust=fp_parse,cluster_num=8,fp,eps=10^(-10),max_iter=1000,lambdas=lambdas[1:5],coefs=coefs[1:3])
+    result<-HMM_merge_higher_order(data_input,cluster_num=8,base_clust=fp_parse,eps=10^(-10),max_iter=1000,lambdas=lambdas[1:5],coefs=coefs[1:3])
   } else if(type=="3color"){
     result<-HMM_merge_3d(data_input,cluster_num=8,base_clust=fp_parse,eps=10^(-10),max_iter=1000,lambdas=lambdas[1:5],coefs=coefs[1:3])
   } else if(type=="4color"){
