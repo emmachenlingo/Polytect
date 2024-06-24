@@ -112,29 +112,74 @@ print(head(result))
   <img src="vignettes/demo_data_hc.png" width="50%" height="70%">
 </div>
 
+The clustering results can be visualized by 2-d plots.
+```{r plot the data,warning=FALSE, message=FALSE}
+polytect_plot(result)
+```
+
 <div style="text-align: center;">
-  <img src="vignettes/demo_data_hc.png" width="50%" height="70%">
+  <img src="vignettes/demo_data_hc_merge.png" width="50%" height="70%">
 </div>
 
+You can also summarise the results, which will give you cluster centers, group sizes and silhouette coefficients for each group
+```{r summarise the results,warning=FALSE, message=FALSE}
+result_summary<-polytect_summary(result)
+print(result_summary)
+```
+<div style="text-align: center;">
+  <img src="vignettes/demo_data_hc_merge.png" width="50%" height="70%">
+</div>
 
 You can also plot the individual silhouette coefficient in each cluster
 ```{r plot sil coefs,warning=FALSE, message=FALSE}
 sil_plot(result)
 ```
+<div style="text-align: center;">
+  <img src="vignettes/demo_data_sil.png" width="50%" height="70%">
+</div>
 
 There is a function to calculate the concentration of the targets.
 ```{r calculate the conc, warning=FALSE, message=FALSE}
 target_conc<-conc_cal(result,sampvol=0.91,volmix=20,voltemp=20,type="2color")
 print(target_conc)
 ```
+<div style="text-align: center;">
+  <img src="vignettes/demo_data_conc.png" width="50%" height="70%">
+</div>
 
-## Session Information
-
-The following information was obtained from the R session that generated this vignette:
-
-```{r session_info, eval = FALSE}
-sessionInfo()
+This package can also handle 3-up to 6-color dPCR data. We first perform flowPeaks only.
+```{r 3d example, warning=FALSE, message=FALSE}
+data(BPV)
+data_scaled<-apply(BPV,2,function(x) (x-min(x))/(max(x)-min(x)))
+data_input<-as.matrix(data_scaled)
+fp<-flowPeaks(data_input)
+table(fp$peaks.cluster)
+df_data<-as.data.frame(cbind(BPV,cluster=fp$peaks.cluster))
+polytect_plot(df_data)
 ```
+<div style="text-align: center;">
+  <img src="vignettes/bpv_fp_cluster.png" width="50%" height="70%">
+</div>
+
+<div style="text-align: center;">
+  <img src="vignettes/bpv_fp.png" width="50%" height="70%">
+</div>
+
+Then the main function.
+```{r 3d example polytect clust, warning=FALSE, message=FALSE}
+result<-polytect_clust(data=BPV,cluster_num=8,type="3color")
+table(result$cluster)
+polytect_plot(result)
+```
+<div style="text-align: center;">
+  <img src="vignettes/bpv_polytect_cluster.png" width="50%" height="70%">
+</div>
+
+<div style="text-align: center;">
+  <img src="vignettes/bpv_polytect.png" width="50%" height="70%">
+</div>
+
+
 
 ## References
 
