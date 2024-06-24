@@ -109,7 +109,11 @@ result<-polytect_merge(data=HR,cluster_num=4,base_clust=hc_parse,type="2color")
 print(head(result))
 ```
 <div style="text-align: center;">
-  <img src="vignettes/demo_data_polytect.png" width="50%" height="70%">
+  <img src="vignettes/demo_data_hc.png" width="50%" height="70%">
+</div>
+
+<div style="text-align: center;">
+  <img src="vignettes/demo_data_hc.png" width="50%" height="70%">
 </div>
 
 
