@@ -8,9 +8,8 @@ polytect_merge(
   data,
   cluster_num,
   base_clust,
-  type = "2color",
-  lambdas = rep(2, 12),
-  coefs = rep(1, 4)
+  lambdas = rep(2, 64 - log2(64)),
+  coefs = rep(1, 6)
 )
 }
 \arguments{

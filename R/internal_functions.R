@@ -97,19 +97,17 @@ approxSilhouette <- function(x, clusters) {
 #' @param cluster_num The expected maximum number of clusters
 #' @return A vector containing the optimal parameters found by the algorithm
 #' @keywords internal
-fp_search<-function(data,cluster_num=16){
-
-  # simple 2d objective function
-  obj.fun.sil = makeSingleObjectiveFunction(
+fp_search <- function(data, cluster_num = 16) {
+  # Simple 2D objective function
+  obj.fun.sil <- makeSingleObjectiveFunction(
     fn = function(pars) {
-      fp<-flowPeaks(data,tol=pars[1],h0=pars[2],h=pars[3])
-      deviation<-cluster_num+2-length(unique(fp$peaks.cluster))
-      tryCatch( {
-        fp_sil_optimval<-deviation^2
-      },error = function(e) {
-        fp_sil_optimval<<-10
+      fp <- flowPeaks(data, tol = pars[1], h0 = pars[2], h = pars[3])
+      deviation <- cluster_num + 2 - length(unique(fp$peaks.cluster))
+      fp_sil_optimval <- tryCatch({
+        deviation^2
+      }, error = function(e) {
+        10
       })
-
       return(fp_sil_optimval)
     },
     par.set = makeParamSet(
@@ -118,532 +116,286 @@ fp_search<-function(data,cluster_num=16){
       makeNumericParam("x3", lower = 0.1, upper = 5)
     )
   )
-
-  # create base control object
-  ctrl = makeMBOControl()
-  # do three MBO iterations
-  ctrl = setMBOControlTermination(ctrl, iters = 4L)
-  # use 500 points in the focus search (should be sufficient for 2d)
-  ctrl = setMBOControlInfill(ctrl, opt.focussearch.points = 500)
-  # create initial design
-  des = generateDesign(n = 15L, getParamSet(obj.fun.sil), fun = lhs::maximinLHS)
-  # start mbo
-  res = mbo(obj.fun.sil, design = des, control = ctrl)
-
-  bo_sil_result<-unlist(res$x)
-
+  
+  # Create base control object
+  ctrl <- makeMBOControl()
+  # Set MBO control termination
+  ctrl <- setMBOControlTermination(ctrl, iters = 4L)
+  # Use 500 points in the focus search (should be sufficient for 2D)
+  ctrl <- setMBOControlInfill(ctrl, opt.focussearch.points = 500)
+  # Create initial design
+  des <- generateDesign(n = 15L, getParamSet(obj.fun.sil), fun = lhs::maximinLHS)
+  # Start MBO
+  res <- mbo(obj.fun.sil, design = des, control = ctrl)
+  bo_sil_result <- unlist(res$x)
   return(bo_sil_result)
 }
 
-
 #' Internal Function 4
 #'
-#' This function merges 2-d dPCR data
-#' @param data A matrix or data frame of fluorescence intensities in each channel. Each row represents each partitions, and each column each channel.
-#' @param cluster_num The expected maximum number of clusters
-#' @param eps the convergence threshold
-#' @param max_iter maximum number of iterations
-#' @param lambdas The penalty terms for the deviation from the expected cluster centers. Higher \code{lambdas} penalizes the deviation more.
-#' @param coefs The coefficients to adjust for the expected cluster centers. The default is 1 which can be used for common assay designs and has
+#' This function outputs vectors and weights that will be used in EM algorithm
+#' @param coefs coefs The coefficients to adjust for the expected cluster centers. The default is 1 which can be used for common assay designs and has
 #' to be modified for special assays such as competing assays.
-#' @return A list of membership probability, cluster center, merging probability
+#' @param mus The cluster centers of primary targets
+#' @param cluster_num The expected maximum number of clusters.
+#' @param dim_data dimension of the dataset
+#' @return A list of vectors and weights
 #' @keywords internal
-HMM_merge<-function(data,cluster_num,base_clust,eps=10^(-10),max_iter=1000,lambdas=rep(2,2),coefs=rep(1,2)) {
-  change_ests=NULL
-  data<-as.matrix(data)
-  dim_data<-ncol(data)
-
-  pih = rep(1/cluster_num,cluster_num)
-  g_clusternum<-unique(base_clust$cluster)
-  mg<-table(base_clust$cluster)
-  mug<-base_clust$mu
-  covg <- array(0,dim=c(dim_data,dim_data,length(g_clusternum)))
-  for (i in 1:length(g_clusternum)){
-    tryCatch( {
-      covg[,,g_clusternum[i]] <- cov(data[base_clust$cluster==g_clusternum[i],])
-    }, error = function(e) {
-      covg[,,g_clusternum[i]] <<- diag(0.001,nrow=dim_data)
-    })
+combined_vectors<-function(coefs,mus,cluster_num,dim_data){
+  comb_num<-cluster_num-log2(cluster_num)-1
+  primary_tar<-log2(cluster_num)
+  comb_seq<-seq(2,primary_tar)
+  
+  coef_matrix<-matrix(0,nrow=primary_tar+1,ncol=primary_tar+1)
+  coef_matrix[,1]<-c(1,coefs)
+  diag(coef_matrix)<-c(1,-coefs)
+  all_combinations <- list()
+  mat_coef<-NULL
+  
+  coef_tmp<-c(1,rep(0,primary_tar))
+  for (i in comb_seq){
+    comb_tmp<-combn(1:primary_tar, i)
+    all_combinations[[i]] <- comb_tmp
+    comb_ncol<-ncol(comb_tmp)
+    for (j in seq_len(comb_ncol)){
+      mat_coef_tmp<-coef_tmp
+      mat_coef_tmp[comb_tmp[,j]+1]<-(-1)
+      mat_coef<-rbind(mat_coef,mat_coef_tmp)
+    }
   }
-
-  #initialization
-  ## find the negative population
-  min_val<-apply(data,2,min)
-  dist_orig<-apply(mug,1,function(x) {sqrt(sum((x-min_val)^2))})
-  neg_assum<-mug[which.min(dist_orig),]
-
-  muh<-matrix(0,nrow=cluster_num,ncol=dim_data)
-  muh[1,]<-neg_assum
-  muh[2,]<-c(0.75*(min(mug[,1])+max(mug[,1])),neg_assum[2])
-  muh[3,]<-c(neg_assum[1],0.75*(min(mug[,2])+max(mug[,2])))
-  muh[4,]<-coefs[1]*muh[2,]+coefs[2]*muh[3,]+(1-coefs[1]-coefs[2])*muh[1,]
-  covh <- array(cov(mug), dim = c(dim_data, dim_data, cluster_num))
-
-  zi<-matrix(0,nrow=length(g_clusternum), ncol=cluster_num)
-
-  ## start the EM algorithm
-
-  for (j in 1:max_iter){
-    if (j>=max_iter){
-      print("Warning: the algorithm fails to converge")
-    }
-    ## E step:
-    for (g in 1:length(g_clusternum)){
-      for (k in 1:cluster_num){
-        inv_zi_tmp<-0
-        for (l in 1:cluster_num){
-          tmp=exp(log(pih[l])-log(pih[k])+mg[g]*(dmvnorm(t(mug[g,]),t(muh[l,]),covh[,,l],log=TRUE)-0.5*tr(solve(covh[,,l])%*%covg[,,g])-dmvnorm(t(mug[g,]),t(muh[k,]),covh[,,k],log=TRUE)+0.5*tr(solve(covh[,,k])%*%covg[,,g])))
-          inv_zi_tmp=inv_zi_tmp+exp(log(pih[l])-log(pih[k])+mg[g]*(dmvnorm(t(mug[g,]),t(muh[l,]),covh[,,l],log=TRUE)-0.5*tr(solve(covh[,,l])%*%covg[,,g])-dmvnorm(t(mug[g,]),t(muh[k,]),covh[,,k],log=TRUE)+0.5*tr(solve(covh[,,k])%*%covg[,,g])))
-        }
-        zi[g,k]=1/inv_zi_tmp
-      }
-    }
-
-
-    ## M step:
-    pih = apply(zi,2,sum)/length(g_clusternum)
-    pih[which(pih==0)]<-(10^(-10))
-    ## for the mus
-    mu1_nom<-c(0,0)
-    mu1_denom<-c(0,0)
-    mu2_nom<-c(0,0)
-    mu2_denom<-c(0,0)
-    mu3_nom<-c(0,0)
-    mu3_denom<-c(0,0)
-    mu4_nom<-c(0,0)
-    mu4_denom<-c(0,0)
-    for (g in 1:length(g_clusternum)){
-      mu1_nom<-mu1_nom+zi[g,1]*mg[g]*mug[g,]%*%solve(covh[,,1])
-      mu1_denom<-mu1_denom+zi[g,1]*mg[g]*solve(covh[,,1])
-
-      mu2_nom<-mu2_nom+zi[g,2]*mg[g]*mug[g,]%*%solve(covh[,,2])
-      mu2_denom<-mu2_denom+zi[g,2]*mg[g]*solve(covh[,,2])
-
-      mu3_nom<-mu3_nom+zi[g,3]*mg[g]*mug[g,]%*%solve(covh[,,3])
-      mu3_denom<-mu3_denom+zi[g,3]*mg[g]*solve(covh[,,3])
-
-      mu4_nom<-mu4_nom+zi[g,4]*mg[g]*mug[g,]%*%solve(covh[,,4])
-      mu4_denom<-mu4_denom+zi[g,4]*mg[g]*solve(covh[,,4])
-
-    }
-    mu1_nom<-mu1_nom+2*lambdas[1]*neg_assum+2*lambdas[2]*(coefs[1]+coefs[2]-1)*(coefs[1]*muh[2,]+coefs[2]*muh[3,]-muh[4,])
-    mu1_denom<-mu1_denom+2*lambdas[1]*diag(1,nrow=2)+2*lambdas[2]*(coefs[1]+coefs[2]-1)^2*diag(1,nrow=dim_data)
-
-    mu2_nom<-mu2_nom+2*lambdas[2]*coefs[1]*((coefs[1]+coefs[2]-1)*muh[1,]+muh[4,]-coefs[2]*muh[3,])
-    mu2_denom<-mu2_denom+2*lambdas[2]*(coefs[1])^2*diag(1,nrow=dim_data)
-
-    mu3_nom<-mu3_nom+2*lambdas[2]*coefs[2]*((coefs[1]+coefs[2]-1)*muh[1,]+muh[4,]-coefs[1]*muh[2,])
-    mu3_denom<-mu3_denom+2*lambdas[2]*(coefs[2])^2*diag(1,nrow=dim_data)
-
-    mu4_nom<-mu4_nom+2*lambdas[2]*(coefs[1]*muh[2,]+coefs[2]*muh[3,]-(coefs[1]+coefs[2]-1)*muh[1,])
-    mu4_denom<-mu4_denom+2*lambdas[2]*diag(1,nrow=dim_data)
-
-    muh[1,]=mu1_nom%*%solve(mu1_denom)
-    muh[2,]=mu2_nom%*%solve(mu2_denom)
-    muh[3,]=mu3_nom%*%solve(mu3_denom)
-    muh[4,]=mu4_nom%*%solve(mu4_denom)
-
-    ## for Sigmas
-    sigma_nom<-matrix(rep(0,dim_data^2),nrow=dim_data)
-    sigma_denom<-0
-    for (k in 1:cluster_num) {
-      for (g in 1:length(g_clusternum)){
-        sigma_nom<-sigma_nom+zi[g,k]*mg[g]*covg[,,g]+zi[g,k]*mg[g]*(mug[g,]-muh[k,])%*%(t(mug[g,]-muh[k,]))
-        sigma_denom<-sigma_denom+zi[g,k]*mg[g]
-      }
-      covh[,, k] <- sigma_nom/sigma_denom
-    }
-
-    # change the likelihood
-    change_ests<-c(change_ests,sum(apply(zi,1,function(x) log(sum(x)))))
-    ## stopping criteria
-    if(j>1){
-
-      if(sum(abs(muh-old_mu))<eps){break}
-    }
-
-    old_mu <- muh
-
-
-  }
-
-  return(list(zi,muh,pih))
+  
+  weights <- mat_coef%*%coef_matrix
+  combined_vecs<-weights%*%mus
+  
+  return(list(combined_vecs,weights))
 }
+
 
 
 #' Internal Function 5
 #'
-#' This function merges 3-d dPCR data
+#' This function intialize the parameters for the main clustering function
 #' @param data A matrix or data frame of fluorescence intensities in each channel. Each row represents each partitions, and each column each channel.
 #' @param cluster_num The expected maximum number of clusters
-#' @param eps the convergence threshold
-#' @param max_iter maximum number of iterations
-#' @param lambdas The penalty terms for the deviation from the expected cluster centers. Higher \code{lambdas} penalizes the deviation more.
+#' @param base_clust The results of base clustering
 #' @param coefs The coefficients to adjust for the expected cluster centers. The default is 1 which can be used for common assay designs and has
 #' to be modified for special assays such as competing assays.
-#' @return A list of membership probability, cluster center, merging probability
+#' @return A list of initial parameters for the EM algorithm
 #' @keywords internal
-HMM_merge_3d<-function(data,cluster_num,base_clust,eps=10^(-10),max_iter=1000,lambdas=rep(2,5),coefs=rep(1,3)) {
-  change_ests=NULL
-  data<-as.matrix(data)
-  dim_data<-ncol(data)
-
-  pih = rep(1/cluster_num,cluster_num)
-  g_clusternum<-unique(base_clust$cluster)
-  mg<-table(base_clust$cluster)
-  mug<-base_clust$mu
-  covg <- array(0,dim=c(dim_data,dim_data,length(g_clusternum)))
-  for (i in 1:length(g_clusternum)){
-    tryCatch( {
-      covg[,,g_clusternum[i]] <- cov(data[base_clust$cluster==g_clusternum[i],])
+GMM_init <- function(data, cluster_num, base_clust, coefs) {
+  change_ests <- NULL
+  data <- as.matrix(data)
+  dim_data <- ncol(data)
+  
+  pih <- rep(1 / cluster_num, cluster_num)
+  g_clusternum <- unique(base_clust$cluster)
+  mg <- table(base_clust$cluster)
+  mug <- base_clust$mu
+  covg <- array(0, dim = c(dim_data, dim_data, length(g_clusternum)))
+  
+  for (i in seq_len(length(g_clusternum))) {
+    covg[, , g_clusternum[i]] <- tryCatch({
+      cov(data[base_clust$cluster == g_clusternum[i], ])
     }, error = function(e) {
-      covg[,,g_clusternum[i]] <<- diag(0.001,nrow=dim_data)
+      diag(0.001, nrow = dim_data)
     })
   }
   
-
-  #initialization
-  ## find the negative population
-  min_val<-apply(data,2,min)
-  dist_orig<-apply(mug,1,function(x) {sqrt(sum((x-min_val)^2))})
-  neg_assum<-mug[which.min(dist_orig),]
-
-  muh<-matrix(0,nrow=cluster_num,ncol=dim_data)
-  muh[1,]<-neg_assum
-  muh[2,]<-c(0.75*(min(mug[,1])+max(mug[,1])),neg_assum[2],neg_assum[3])
-  muh[3,]<-c(neg_assum[1],0.75*(min(mug[,2])+max(mug[,2])),neg_assum[3])
-  muh[4,]<-c(neg_assum[1],neg_assum[2],0.75*(min(mug[,3])+max(mug[,3])))
-  muh[5,]<-coefs[1]*muh[2,]+coefs[2]*muh[3,]+(1-coefs[1]-coefs[2])*muh[1,]
-  muh[6,]<-coefs[1]*muh[2,]+coefs[3]*muh[4,]+(1-coefs[1]-coefs[3])*muh[1,]
-  muh[7,]<-coefs[2]*muh[3,]+coefs[3]*muh[4,]+(1-coefs[2]-coefs[3])*muh[1,]
-  muh[8,]<-coefs[1]*muh[2,]+coefs[2]*muh[3,]+coefs[3]*muh[4,]+(1-coefs[1]-coefs[2]-coefs[3])*muh[1,]
-
-  covh <- array(cov(mug), dim = c(dim_data, dim_data, cluster_num))
-
-  zi<-matrix(0,nrow=length(g_clusternum), ncol=cluster_num)
-
-  ## start the EM algorithm
-
-  for (j in 1:max_iter){
-    if (j>=max_iter){
-      print("Warning: the algorithm fails to converge")
+  # Initialization
+  min_val <- apply(data, 2, min)
+  dist_orig <- apply(mug, 1, function(x) sqrt(sum((x - min_val)^2)))
+  neg_assum <- mug[which.min(dist_orig), ]
+  
+  muh <- matrix(neg_assum, nrow = cluster_num, ncol = dim_data, byrow = TRUE)
+  muh[2, 1] <- 0.75 * (min(mug[, 1]) + max(mug[, 1]))
+  muh[3, 2] <-  0.75 * (min(mug[, 2]) + max(mug[, 2]))
+  if (cluster_num == 8){
+    if (dim_data==2){
+      muh[4, ] <- c(0.5*(neg_assum[1]+muh[2,1]),0.5*(neg_assum[2]+muh[3,2]))
+    } else if (dim_data==3) {
+      muh[4, 3] <-  0.75 * (min(mug[, 3]) + max(mug[, 3]))
     }
-    ## E step:
-    for (g in 1:length(g_clusternum)){
-      for (k in 1:cluster_num){
-        inv_zi_tmp<-0
-        for (l in 1:cluster_num){
-          tmp=exp(log(pih[l])-log(pih[k])+mg[g]*(dmvnorm(t(mug[g,]),t(muh[l,]),covh[,,l],log=TRUE)-0.5*tr(solve(covh[,,l])%*%covg[,,g])-dmvnorm(t(mug[g,]),t(muh[k,]),covh[,,k],log=TRUE)+0.5*tr(solve(covh[,,k])%*%covg[,,g])))
-          inv_zi_tmp=inv_zi_tmp+exp(log(pih[l])-log(pih[k])+mg[g]*(dmvnorm(t(mug[g,]),t(muh[l,]),covh[,,l],log=TRUE)-0.5*tr(solve(covh[,,l])%*%covg[,,g])-dmvnorm(t(mug[g,]),t(muh[k,]),covh[,,k],log=TRUE)+0.5*tr(solve(covh[,,k])%*%covg[,,g])))
-        }
-        zi[g,k]=1/inv_zi_tmp
-      }
+  } else if (cluster_num >= 16) {
+    muh[4, 3] <-  0.75 * (min(mug[, 3]) + max(mug[, 3]))
+    muh[5, 4] <-  0.75 * (min(mug[, 4]) + max(mug[, 4]))
+    if (cluster_num == 64) {
+      muh[6, 5] <-  0.75 * (min(mug[, 5]) + max(mug[, 5]))
+      muh[7, 6] <-  0.75 * (min(mug[, 6]) + max(mug[, 6]))
     }
-
-
-    ## M step:
-    pih = apply(zi,2,sum)/length(g_clusternum)
-    pih[which(pih==0)]<-(10^(-10))
-    ## for the mus
-    mu1_nom<-c(0,0,0)
-    mu1_denom<-c(0,0,0)
-    mu2_nom<-c(0,0,0)
-    mu2_denom<-c(0,0,0)
-    mu3_nom<-c(0,0,0)
-    mu3_denom<-c(0,0,0)
-    mu4_nom<-c(0,0,0)
-    mu4_denom<-c(0,0,0)
-    mu5_nom<-c(0,0,0)
-    mu5_denom<-c(0,0,0)
-    mu6_nom<-c(0,0,0)
-    mu6_denom<-c(0,0,0)
-    mu7_nom<-c(0,0,0)
-    mu7_denom<-c(0,0,0)
-    mu8_nom<-c(0,0,0)
-    mu8_denom<-c(0,0,0)
-    for (g in 1:length(g_clusternum)){
-      mu1_nom<-mu1_nom+zi[g,1]*mg[g]*mug[g,]%*%solve(covh[,,1])
-      mu1_denom<-mu1_denom+zi[g,1]*mg[g]*solve(covh[,,1])
-
-      mu2_nom<-mu2_nom+zi[g,2]*mg[g]*mug[g,]%*%solve(covh[,,2])
-      mu2_denom<-mu2_denom+zi[g,2]*mg[g]*solve(covh[,,2])
-
-      mu3_nom<-mu3_nom+zi[g,3]*mg[g]*mug[g,]%*%solve(covh[,,3])
-      mu3_denom<-mu3_denom+zi[g,3]*mg[g]*solve(covh[,,3])
-
-      mu4_nom<-mu4_nom+zi[g,4]*mg[g]*mug[g,]%*%solve(covh[,,4])
-      mu4_denom<-mu4_denom+zi[g,4]*mg[g]*solve(covh[,,4])
-
-      mu5_nom<-mu5_nom+zi[g,5]*mg[g]*mug[g,]%*%solve(covh[,,5])
-      mu5_denom<-mu5_denom+zi[g,5]*mg[g]*solve(covh[,,5])
-
-      mu6_nom<-mu6_nom+zi[g,6]*mg[g]*mug[g,]%*%solve(covh[,,6])
-      mu6_denom<-mu6_denom+zi[g,6]*mg[g]*solve(covh[,,6])
-
-      mu7_nom<-mu7_nom+zi[g,7]*mg[g]*mug[g,]%*%solve(covh[,,7])
-      mu7_denom<-mu7_denom+zi[g,7]*mg[g]*solve(covh[,,7])
-
-      mu8_nom<-mu8_nom+zi[g,8]*mg[g]*mug[g,]%*%solve(covh[,,8])
-      mu8_denom<-mu8_denom+zi[g,8]*mg[g]*solve(covh[,,8])
-    }
-    mu1_nom<-mu1_nom+2*lambdas[1]*neg_assum+2*lambdas[2]*(coefs[1]+coefs[2]-1)*(coefs[1]*muh[2,]+coefs[2]*muh[3,]-muh[5,])+2*lambdas[3]*(coefs[1]+coefs[3]-1)*(coefs[1]*muh[2,]+coefs[3]*muh[4,]-muh[6,])+2*lambdas[4]*(coefs[2]+coefs[3]-1)*(coefs[2]*muh[3,]+coefs[3]*muh[4,]-muh[7,])+2*lambdas[5]*(coefs[1]+coefs[2]+coefs[3]-1)*(coefs[1]*muh[2,]+coefs[2]*muh[3,]+coefs[3]*muh[4,]-muh[8,])
-    mu1_denom<-mu1_denom+2*lambdas[1]*diag(1,nrow=dim_data)+2*lambdas[2]*(coefs[1]+coefs[2]-1)^2*diag(1,nrow=dim_data)+2*lambdas[3]*(coefs[1]+coefs[3]-1)^2*diag(1,nrow=dim_data)+2*lambdas[4]*(coefs[2]+coefs[3]-1)^2*diag(1,nrow=dim_data)+2*lambdas[5]*(coefs[1]+coefs[2]+coefs[3]-1)^2*diag(1,nrow=dim_data)
-
-    mu2_nom<-mu2_nom+2*lambdas[2]*coefs[1]*((coefs[1]+coefs[2]-1)*muh[1,]+muh[5,]-coefs[2]*muh[3,])+2*lambdas[3]*coefs[1]*((coefs[1]+coefs[3]-1)*muh[1,]+muh[6,]-coefs[3]*muh[4,])+2*lambdas[5]*coefs[1]*(muh[8,]-coefs[2]*muh[3,]-coefs[3]*muh[4,]+(coefs[1]+coefs[2]+coefs[3]-1)*muh[1,])
-    mu2_denom<-mu2_denom+2*lambdas[2]*(coefs[1])^2*diag(1,nrow=dim_data)+2*lambdas[3]*(coefs[1])^2*diag(1,nrow=dim_data)+2*lambdas[5]*(coefs[1])^2*diag(1,nrow=dim_data)
-
-    mu3_nom<-mu3_nom+2*lambdas[2]*coefs[2]*((coefs[1]+coefs[2]-1)*muh[1,]+muh[5,]-coefs[1]*muh[2,])+2*lambdas[4]*coefs[2]*((coefs[2]+coefs[3]-1)*muh[1,]+muh[7,]-coefs[3]*muh[4,])+2*lambdas[5]*coefs[2]*(muh[8,]-coefs[1]*muh[2,]-coefs[3]*muh[4,]+(coefs[1]+coefs[2]+coefs[3]-1)*muh[1,])
-    mu3_denom<-mu3_denom+2*lambdas[2]*(coefs[2])^2*diag(1,nrow=dim_data)+2*lambdas[4]*(coefs[2])^2*diag(1,nrow=dim_data)+2*lambdas[5]*(coefs[2])^2*diag(1,nrow=dim_data)
-
-    mu4_nom<-mu4_nom+2*lambdas[3]*coefs[3]*((coefs[1]+coefs[3]-1)*muh[1,]+muh[6,]-coefs[1]*muh[2,])+2*lambdas[4]*coefs[3]*((coefs[2]+coefs[3]-1)*muh[1,]+muh[7,]-coefs[2]*muh[3,])+2*lambdas[5]*coefs[3]*(muh[8,]-coefs[1]*muh[2,]-coefs[2]*muh[3,]+(coefs[1]+coefs[2]+coefs[3]-1)*muh[1,])
-    mu4_denom<-mu4_denom+2*lambdas[3]*(coefs[3])^2*diag(1,nrow=dim_data)+2*lambdas[4]*(coefs[3])^2*diag(1,nrow=dim_data)+2*lambdas[5]*(coefs[3])^2*diag(1,nrow=dim_data)
-
-    mu5_nom<-mu5_nom+2*lambdas[2]*(coefs[1]*muh[2,]+coefs[2]*muh[3,]-(coefs[1]+coefs[2]-1)*muh[1,])
-    mu5_denom<-mu5_denom+2*lambdas[2]*diag(1,nrow=dim_data)
-
-    mu6_nom<-mu6_nom+2*lambdas[3]*(coefs[1]*muh[2,]+coefs[3]*muh[4,]-(coefs[1]+coefs[3]-1)*muh[1,])
-    mu6_denom<-mu6_denom+2*lambdas[3]*diag(1,nrow=dim_data)
-
-    mu7_nom<-mu7_nom+2*lambdas[4]*(coefs[2]*muh[3,]+coefs[3]*muh[4,]-(coefs[2]+coefs[3]-1)*muh[1,])
-    mu7_denom<-mu7_denom+2*lambdas[4]*diag(1,nrow=dim_data)
-
-    mu8_nom<-mu8_nom+2*lambdas[5]*(coefs[1]*muh[2,]+coefs[2]*muh[3,]+coefs[3]*muh[4,]-(coefs[1]+coefs[2]+coefs[3]-1)*muh[1,])
-    mu8_denom<-mu8_denom+2*lambdas[5]*diag(1,nrow=dim_data)
-
-    muh[1,]=mu1_nom%*%solve(mu1_denom)
-    muh[2,]=mu2_nom%*%solve(mu2_denom)
-    muh[3,]=mu3_nom%*%solve(mu3_denom)
-    muh[4,]=mu4_nom%*%solve(mu4_denom)
-    muh[5,]=mu5_nom%*%solve(mu5_denom)
-    muh[6,]=mu6_nom%*%solve(mu6_denom)
-    muh[7,]=mu7_nom%*%solve(mu7_denom)
-    muh[8,]=mu8_nom%*%solve(mu8_denom)
-
-    ## for Sigmas
-    sigma_nom<-matrix(rep(0,dim_data^2),nrow=dim_data)
-    sigma_denom<-0
-    for (k in 1:cluster_num) {
-      for (g in 1:length(g_clusternum)){
-        sigma_nom<-sigma_nom+zi[g,k]*mg[g]*covg[,,g]+zi[g,k]*mg[g]*(mug[g,]-muh[k,])%*%(t(mug[g,]-muh[k,]))
-        sigma_denom<-sigma_denom+zi[g,k]*mg[g]
-      }
-      covh[,, k] <- sigma_nom/sigma_denom
-    }
-
-    # change the likelihood
-    change_ests<-c(change_ests,sum(apply(zi,1,function(x) log(sum(x)))))
-    ## stopping criteria
-    if(j>1){
-
-      if(sum(abs(muh-old_mu))<eps){break}
-    }
-
-    old_mu <- muh
-
-
   }
-
-  return(list(zi,muh,pih))
+  combined_results <- combined_vectors(coefs=coefs,mus=muh[1:(log2(cluster_num)+1),],cluster_num,dim_data)
+  muh[-c(1:(log2(cluster_num)+1)),] <- combined_results[[1]]
+  weights <-combined_results[[2]]
+  covh <- array(cov(mug), dim = c(dim_data, dim_data, cluster_num))
+  
+  return(list(pih,muh,covh,g_clusternum,mg,mug,covg, weights,neg_assum))
 }
+
 
 #' Internal Function 6
 #'
-#' This function merges 4-d dPCR data
-#' @param data A matrix or data frame of fluorescence intensities in each channel. Each row represents each partitions, and each column each channel.
+#' This function compute the necessary elements for estep function 
+#' @param g cluster index
+#' @param k cluster index
 #' @param cluster_num The expected maximum number of clusters
-#' @param eps the convergence threshold
-#' @param max_iter maximum number of iterations
-#' @param lambdas The penalty terms for the deviation from the expected cluster centers. Higher \code{lambdas} penalizes the deviation more.
-#' @param coefs The coefficients to adjust for the expected cluster centers. The default is 1 which can be used for common assay designs and has
-#' to be modified for special assays such as competing assays.
-#' @return A list of membership probability, cluster center, merging probability
+#' @param mg cluster sizes of base clustering result
+#' @param log_pih log pih (the probability of cluster g belonging at level l+1 to cluster h at level l)
+#' @param mug_t the transposed matrix of cluster centers at level l+1
+#' @param muh_t the transposed matrix of cluster centers at level l
+#' @param covg  the covariance matrix of clusters at level l+1
+#' @param covh  the covariance matrix of clusters at level l
+#' @return A vector of intermediate values for zi calculation in estep function
 #' @keywords internal
-HMM_merge_4d<-function(data,cluster_num,base_clust,eps=10^(-10),max_iter=1000,lambdas=rep(2,12),coefs=rep(1,4)) {
-  change_ests=NULL
-  data<-as.matrix(data)
-  dim_data<-ncol(data)
-
-  pih = rep(1/cluster_num,cluster_num)
-  g_clusternum<-unique(base_clust$cluster)
-  mg<-table(base_clust$cluster)
-  mug<-base_clust$mu
-  covg <- array(0,dim=c(dim_data,dim_data,length(g_clusternum)))
-  for (i in 1:length(g_clusternum)){
-    tryCatch( {
-      covg[,,g_clusternum[i]] <- cov(data[base_clust$cluster==g_clusternum[i],])
-    }, error = function(e) {
-      covg[,,g_clusternum[i]] <<- diag(0.001,nrow=dim_data)
-    })
+compute_tmp_matrix <- function(g, k, cluster_num, mg, log_pih, mug_t, muh_t, covh, covg) {
+  exp_diff <- numeric(cluster_num)
+  
+  for (l in seq_len(cluster_num)) {
+    log_dmvnorm_l <- dmvnorm(mug_t[, g], muh_t[, l], covh[, , l], log = TRUE)
+    log_dmvnorm_k <- dmvnorm(mug_t[, g], muh_t[, k], covh[, , k], log = TRUE)
+    term_l <- -0.5 * tr(solve(covh[, , l]) %*% covg[, , g])
+    term_k <- 0.5 * tr(solve(covh[, , k]) %*% covg[, , g])
+    
+    exp_diff[l] <- exp(log_pih[l] - log_pih[k] + mg[g] * (log_dmvnorm_l + term_l - log_dmvnorm_k + term_k))
   }
   
-  #initialization
-  ## find the negative population
-  min_val<-apply(data,2,min)
-  dist_orig<-apply(mug,1,function(x) {sqrt(sum((x-min_val)^2))})
-  neg_assum<-mug[which.min(dist_orig),]
-
-  muh<-matrix(0,nrow=cluster_num,ncol=dim_data)
-  muh[1,]<-neg_assum
-  muh[2,]<-c(0.75*(min(mug[,1])+max(mug[,1])),neg_assum[2],neg_assum[3],neg_assum[4])
-  muh[3,]<-c(neg_assum[1],0.75*(min(mug[,2])+max(mug[,2])),neg_assum[3],neg_assum[4])
-  muh[4,]<-c(neg_assum[1],neg_assum[2],0.75*(min(mug[,3])+max(mug[,3])),neg_assum[4])
-  muh[5,]<-c(neg_assum[1],neg_assum[2],neg_assum[3],0.75*(min(mug[,4])+max(mug[,4])))
-
-  muh[6,]<-coefs[1]*muh[2,]+coefs[2]*muh[3,]-(coefs[1]+coefs[2]-1)*muh[1,]
-  muh[7,]<-coefs[1]*muh[2,]+coefs[3]*muh[4,]-(coefs[1]+coefs[3]-1)*muh[1,]
-  muh[8,]<-coefs[1]*muh[2,]+coefs[4]*muh[5,]-(coefs[1]+coefs[4]-1)*muh[1,]
-  muh[9,]<-coefs[2]*muh[3,]+coefs[3]*muh[4,]-(coefs[2]+coefs[3]-1)*muh[1,]
-  muh[10,]<-coefs[2]*muh[3,]+coefs[4]*muh[5,]-(coefs[2]+coefs[4]-1)*muh[1,]
-  muh[11,]<-coefs[3]*muh[4,]+coefs[4]*muh[5,]-(coefs[3]+coefs[4]-1)*muh[1,]
-
-  muh[12,]<-coefs[1]*muh[2,]+coefs[2]*muh[3,]+coefs[3]*muh[4,]-(coefs[1]+coefs[2]+coefs[3]-1)*muh[1,]
-  muh[13,]<-coefs[1]*muh[2,]+coefs[2]*muh[3,]+coefs[4]*muh[5,]-(coefs[1]+coefs[2]+coefs[4]-1)*muh[1,]
-  muh[14,]<-coefs[1]*muh[2,]+coefs[3]*muh[4,]+coefs[4]*muh[5,]-(coefs[1]+coefs[3]+coefs[4]-1)*muh[1,]
-  muh[15,]<-coefs[2]*muh[3,]+coefs[3]*muh[4,]+coefs[4]*muh[5,]-(coefs[2]+coefs[3]+coefs[4]-1)*muh[1,]
-
-  muh[16,]<-coefs[1]*muh[2,]+coefs[2]*muh[3,]+coefs[3]*muh[4,]+coefs[4]*muh[5,]-(coefs[1]+coefs[2]+coefs[3]+coefs[4]-1)*muh[1,]
-
-
-  covh <- array(cov(mug), dim = c(dim_data, dim_data, cluster_num))
-
-  zi<-matrix(0,nrow=length(g_clusternum), ncol=cluster_num)
-
-  ## start the EM algorithm
-
-  for (j in 1:max_iter){
-    if (j>=max_iter){
-      print("Warning: the algorithm fails to converge")
-    }
-    ## E step:
-    for (g in 1:length(g_clusternum)){
-      for (k in 1:cluster_num){
-        inv_zi_tmp<-0
-        for (l in 1:cluster_num){
-          tmp=exp(log(pih[l])-log(pih[k])+mg[g]*(dmvnorm(t(mug[g,]),t(muh[l,]),covh[,,l],log=TRUE)-0.5*tr(solve(covh[,,l])%*%covg[,,g])-dmvnorm(t(mug[g,]),t(muh[k,]),covh[,,k],log=TRUE)+0.5*tr(solve(covh[,,k])%*%covg[,,g])))
-          inv_zi_tmp=inv_zi_tmp+exp(log(pih[l])-log(pih[k])+mg[g]*(dmvnorm(t(mug[g,]),t(muh[l,]),covh[,,l],log=TRUE)-0.5*tr(solve(covh[,,l])%*%covg[,,g])-dmvnorm(t(mug[g,]),t(muh[k,]),covh[,,k],log=TRUE)+0.5*tr(solve(covh[,,k])%*%covg[,,g])))
-        }
-        zi[g,k]=1/inv_zi_tmp
-      }
-    }
-
-
-    ## M step:
-    pih = apply(zi,2,sum)/length(g_clusternum)
-    pih[which(pih==0)]<-(10^(-10))
-    ## for the mus
-    mus_nom<-matrix(0,nrow=cluster_num,ncol=dim_data)
-    mus_denom<-array(0, dim = c(dim_data, dim_data, cluster_num))
-
-
-    for (g in 1:length(g_clusternum)){
-      for (h in 1:cluster_num){
-        mus_nom[h,]<-mus_nom[h,]+zi[g,h]*mg[g]*mug[g,]%*%solve(covh[,,h])
-        mus_denom[,,h]<-mus_denom[,,h]+zi[g,h]*mg[g]*solve(covh[,,h])
-      }
-    }
-    mus_nom[1,]<-mus_nom[1,]+2*lambdas[1]*neg_assum+2*lambdas[2]*(coefs[1]+coefs[2]-1)*(coefs[1]*muh[2,]+coefs[2]*muh[3,]-muh[6,])+2*lambdas[3]*(coefs[1]+coefs[3]-1)*(coefs[1]*muh[2,]+coefs[3]*muh[4,]-muh[7,])+2*lambdas[4]*(coefs[1]+coefs[4]-1)*(coefs[1]*muh[2,]+coefs[4]*muh[5,]-muh[8,])
-    +2*lambdas[5]*(coefs[2]+coefs[3]-1)*(coefs[2]*muh[3,]+coefs[3]*muh[4,]-muh[9,])+2*lambdas[6]*(coefs[2]+coefs[4]-1)*(coefs[2]*muh[3,]+coefs[4]*muh[5,]-muh[10,])+2*lambdas[7]*(coefs[3]+coefs[4]-1)*(coefs[3]*muh[4,]+coefs[4]*muh[5,]-muh[11,])+2*lambdas[8]*(coefs[1]+coefs[2]+coefs[3]-1)*(coefs[1]*muh[2,]+coefs[2]*muh[3,]+coefs[3]*muh[4,]-muh[12,])
-    +2*lambdas[9]*(coefs[1]+coefs[2]+coefs[4]-1)*(coefs[1]*muh[2,]+coefs[2]*muh[3,]+coefs[4]*muh[5,]-muh[13,])+2*lambdas[10]*(coefs[1]+coefs[3]+coefs[4]-1)*(coefs[1]*muh[2,]+coefs[3]*muh[4,]+coefs[4]*muh[5,]-muh[14,])+2*lambdas[11]*(coefs[2]+coefs[3]+coefs[4]-1)*(coefs[2]*muh[3,]+coefs[3]*muh[4,]+coefs[4]*muh[5,]-muh[15,])
-    +2*lambdas[12]*(coefs[1]+coefs[2]+coefs[3]+coefs[4]-1)*(coefs[1]*muh[2,]+coefs[2]*muh[3,]+coefs[3]*muh[4,]+coefs[4]*muh[5,]-muh[16,])
-    mus_denom[,,1]<-mus_denom[,,1]+2*lambdas[1]*diag(1,nrow=dim_data)+2*lambdas[2]*(coefs[1]+coefs[2]-1)^2*diag(1,nrow=dim_data)+2*lambdas[3]*(coefs[1]+coefs[3]-1)^2*diag(1,nrow=dim_data)+2*lambdas[4]*(coefs[1]+coefs[4]-1)^2*diag(1,nrow=dim_data)
-    +2*lambdas[5]*(coefs[2]+coefs[3]-1)^2*diag(1,nrow=dim_data)+2*lambdas[6]*(coefs[2]+coefs[4]-1)^2*diag(1,nrow=dim_data)+2*lambdas[7]*(coefs[3]+coefs[4]-1)^2*diag(1,nrow=dim_data)+2*lambdas[8]*(coefs[1]+coefs[2]+coefs[3]-1)^2*diag(1,nrow=dim_data)
-    +2*lambdas[9]*(coefs[1]+coefs[2]+coefs[4]-1)^2*diag(1,nrow=dim_data)+2*lambdas[10]*(coefs[1]+coefs[3]+coefs[4]-1)^2*diag(1,nrow=dim_data)+2*lambdas[11]*(coefs[2]+coefs[3]+coefs[4]-1)^2*diag(1,nrow=dim_data)+2*lambdas[12]*(coefs[1]+coefs[2]+coefs[3]+coefs[4]-1)^2*diag(1,nrow=dim_data)
-
-    mus_nom[2,]<-mus_nom[2,]+2*lambdas[2]*coefs[1]*((coefs[1]+coefs[2]-1)*muh[1,]+muh[6,]-coefs[2]*muh[3,])+2*lambdas[3]*coefs[1]*((coefs[1]+coefs[3]-1)*muh[1,]+muh[7,]-coefs[3]*muh[4,])+2*lambdas[4]*coefs[1]*((coefs[1]+coefs[4]-1)*muh[1,]+muh[8,]-coefs[4]*muh[5,])
-    +2*lambdas[8]*coefs[1]*(muh[12,]-coefs[2]*muh[3,]-coefs[3]*muh[4,]+(coefs[1]+coefs[2]+coefs[3]-1)*muh[1,])+2*lambdas[9]*coefs[1]*(muh[13,]-coefs[2]*muh[3,]-coefs[4]*muh[5,]+(coefs[1]+coefs[2]+coefs[4]-1)*muh[1,])+2*lambdas[10]*coefs[1]*(muh[14,]-coefs[3]*muh[4,]-coefs[4]*muh[5,]+(coefs[1]+coefs[3]+coefs[4]-1)*muh[1,])
-    +2*lambdas[12]*coefs[1]*(muh[16,]-coefs[2]*muh[3,]-coefs[3]*muh[4,]-coefs[4]*muh[5,]+(coefs[1]+coefs[2]+coefs[3]+coefs[4]-1)*muh[1,])
-    mus_denom[,,2]<- mus_denom[,,2]+2*lambdas[2]*(coefs[1])^2*diag(1,nrow=dim_data)+2*lambdas[3]*(coefs[1])^2*diag(1,nrow=dim_data)+2*lambdas[4]*(coefs[1])^2*diag(1,nrow=dim_data)
-    +2*lambdas[8]*(coefs[1])^2*diag(1,nrow=dim_data)+2*lambdas[9]*(coefs[1])^2*diag(1,nrow=dim_data)+2*lambdas[10]*(coefs[1])^2*diag(1,nrow=dim_data)+2*lambdas[12]*(coefs[1])^2*diag(1,nrow=dim_data)
-
-    mus_nom[3,]<-mus_nom[3,]+2*lambdas[2]*coefs[2]*((coefs[1]+coefs[2]-1)*muh[1,]+muh[6,]-coefs[1]*muh[2,])+2*lambdas[5]*coefs[2]*((coefs[2]+coefs[3]-1)*muh[1,]+muh[9,]-coefs[3]*muh[4,])+2*lambdas[6]*coefs[2]*((coefs[2]+coefs[4]-1)*muh[1,]+muh[10,]-coefs[4]*muh[5,])
-    +2*lambdas[8]*coefs[2]*(muh[12,]-coefs[1]*muh[2,]-coefs[3]*muh[4,]+(coefs[1]+coefs[2]+coefs[3]-1)*muh[1,])+2*lambdas[9]*coefs[2]*(muh[13,]-coefs[1]*muh[2,]-coefs[4]*muh[5,]+(coefs[1]+coefs[2]+coefs[4]-1)*muh[1,])+2*lambdas[11]*coefs[2]*(muh[15,]-coefs[3]*muh[4,]-coefs[4]*muh[5,]+(coefs[2]+coefs[3]+coefs[4]-1)*muh[1,])
-    +2*lambdas[12]*coefs[2]*(muh[16,]-coefs[1]*muh[2,]-coefs[3]*muh[4,]-coefs[4]*muh[5,]+(coefs[1]+coefs[2]+coefs[3]+coefs[4]-1)*muh[1,])
-    mus_denom[,,3]<- mus_denom[,,3]+2*lambdas[2]*(coefs[2])^2*diag(1,nrow=dim_data)+2*lambdas[5]*(coefs[2])^2*diag(1,nrow=dim_data)+2*lambdas[6]*(coefs[2])^2*diag(1,nrow=dim_data)
-    +2*lambdas[8]*(coefs[2])^2*diag(1,nrow=dim_data)+2*lambdas[9]*(coefs[2])^2*diag(1,nrow=dim_data)+2*lambdas[11]*(coefs[2])^2*diag(1,nrow=dim_data)+2*lambdas[12]*(coefs[2])^2*diag(1,nrow=dim_data)
-
-    mus_nom[4,]<-mus_nom[4,]+2*lambdas[3]*coefs[3]*((coefs[1]+coefs[3]-1)*muh[1,]+muh[7,]-coefs[1]*muh[2,])+2*lambdas[5]*coefs[3]*((coefs[2]+coefs[3]-1)*muh[1,]+muh[9,]-coefs[2]*muh[3,])+2*lambdas[7]*coefs[3]*((coefs[3]+coefs[4]-1)*muh[1,]+muh[11,]-coefs[4]*muh[5,])
-    +2*lambdas[8]*coefs[3]*(muh[12,]-coefs[1]*muh[2,]-coefs[2]*muh[3,]+(coefs[1]+coefs[2]+coefs[3]-1)*muh[1,])+2*lambdas[10]*coefs[3]*(muh[14,]-coefs[1]*muh[2,]-coefs[4]*muh[5,]+(coefs[1]+coefs[3]+coefs[4]-1)*muh[1,])+2*lambdas[11]*coefs[3]*(muh[15,]-coefs[2]*muh[3,]-coefs[4]*muh[5,]+(coefs[2]+coefs[3]+coefs[4]-1)*muh[1,])
-    +2*lambdas[12]*coefs[3]*(muh[16,]-coefs[1]*muh[2,]-coefs[2]*muh[3,]-coefs[4]*muh[5,]+(coefs[1]+coefs[2]+coefs[3]+coefs[4]-1)*muh[1,])
-    mus_denom[,,4]<- mus_denom[,,4]+2*lambdas[3]*(coefs[3])^2*diag(1,nrow=dim_data)+2*lambdas[5]*(coefs[3])^2*diag(1,nrow=dim_data)+2*lambdas[7]*(coefs[3])^2*diag(1,nrow=dim_data)
-    +2*lambdas[8]*(coefs[3])^2*diag(1,nrow=dim_data)+2*lambdas[10]*(coefs[3])^2*diag(1,nrow=dim_data)+2*lambdas[11]*(coefs[3])^2*diag(1,nrow=dim_data)+2*lambdas[12]*(coefs[3])^2*diag(1,nrow=dim_data)
-
-    mus_nom[5,]<-mus_nom[5,]+2*lambdas[4]*coefs[4]*((coefs[1]+coefs[4]-1)*muh[1,]+muh[8,]-coefs[1]*muh[2,])+2*lambdas[6]*coefs[4]*((coefs[2]+coefs[4]-1)*muh[1,]+muh[10,]-coefs[2]*muh[3,])+2*lambdas[7]*coefs[4]*((coefs[3]+coefs[4]-1)*muh[1,]+muh[11,]-coefs[3]*muh[4,])
-    +2*lambdas[9]*coefs[4]*(muh[13,]-coefs[1]*muh[2,]-coefs[2]*muh[3,]+(coefs[1]+coefs[2]+coefs[4]-1)*muh[1,])+2*lambdas[10]*coefs[4]*(muh[14,]-coefs[1]*muh[2,]-coefs[3]*muh[4,]+(coefs[1]+coefs[3]+coefs[4]-1)*muh[1,])+2*lambdas[11]*coefs[4]*(muh[15,]-coefs[2]*muh[3,]-coefs[3]*muh[4,]+(coefs[2]+coefs[3]+coefs[4]-1)*muh[1,])
-    +2*lambdas[12]*coefs[4]*(muh[16,]-coefs[1]*muh[2,]-coefs[2]*muh[3,]-coefs[3]*muh[4,]+(coefs[1]+coefs[2]+coefs[3]+coefs[4]-1)*muh[1,])
-    mus_denom[,,5]<- mus_denom[,,5]+2*lambdas[4]*(coefs[4])^2*diag(1,nrow=dim_data)+2*lambdas[6]*(coefs[4])^2*diag(1,nrow=dim_data)+2*lambdas[7]*(coefs[4])^2*diag(1,nrow=dim_data)
-    +2*lambdas[9]*(coefs[4])^2*diag(1,nrow=dim_data)+2*lambdas[10]*(coefs[4])^2*diag(1,nrow=dim_data)+2*lambdas[11]*(coefs[4])^2*diag(1,nrow=dim_data)+2*lambdas[12]*(coefs[4])^2*diag(1,nrow=dim_data)
-
-    mus_nom[6,]<-mus_nom[6,]+2*lambdas[2]*(coefs[1]*muh[2,]+coefs[2]*muh[3,]-(coefs[1]+coefs[2]-1)*muh[1,])
-    mus_denom[,,6]<- mus_denom[,,6]+2*lambdas[2]*diag(1,nrow=dim_data)
-
-    mus_nom[7,]<-mus_nom[7,]+2*lambdas[3]*(coefs[1]*muh[2,]+coefs[3]*muh[4,]-(coefs[1]+coefs[3]-1)*muh[1,])
-    mus_denom[,,7]<- mus_denom[,,7]+2*lambdas[3]*diag(1,nrow=dim_data)
-
-    mus_nom[8,]<-mus_nom[8,]+2*lambdas[4]*(coefs[1]*muh[2,]+coefs[4]*muh[5,]-(coefs[1]+coefs[4]-1)*muh[1,])
-    mus_denom[,,8]<- mus_denom[,,8]+2*lambdas[4]*diag(1,nrow=dim_data)
-
-    mus_nom[9,]<-mus_nom[9,]+2*lambdas[5]*(coefs[2]*muh[3,]+coefs[3]*muh[4,]-(coefs[2]+coefs[3]-1)*muh[1,])
-    mus_denom[,,9]<- mus_denom[,,9]+2*lambdas[5]*diag(1,nrow=dim_data)
-
-    mus_nom[10,]<-mus_nom[10,]+2*lambdas[6]*(coefs[2]*muh[3,]+coefs[4]*muh[5,]-(coefs[2]+coefs[4]-1)*muh[1,])
-    mus_denom[,,10]<- mus_denom[,,10]+2*lambdas[6]*diag(1,nrow=dim_data)
-
-    mus_nom[11,]<-mus_nom[11,]+2*lambdas[7]*(coefs[3]*muh[4,]+coefs[4]*muh[5,]-(coefs[3]+coefs[4]-1)*muh[1,])
-    mus_denom[,,11]<- mus_denom[,,11]+2*lambdas[7]*diag(1,nrow=dim_data)
-
-    mus_nom[12,]<-mus_nom[12,]+2*lambdas[8]*(coefs[1]*muh[2,]+coefs[2]*muh[3,]+coefs[3]*muh[4,]-(coefs[1]+coefs[2]+coefs[3]-1)*muh[1,])
-    mus_denom[,,12]<- mus_denom[,,12]+2*lambdas[8]*diag(1,nrow=dim_data)
-
-    mus_nom[13,]<-mus_nom[13,]+2*lambdas[9]*(coefs[1]*muh[2,]+coefs[2]*muh[3,]+coefs[4]*muh[5,]-(coefs[1]+coefs[2]+coefs[4]-1)*muh[1,])
-    mus_denom[,,13]<- mus_denom[,,13]+2*lambdas[9]*diag(1,nrow=dim_data)
-
-    mus_nom[14,]<-mus_nom[14,]+2*lambdas[10]*(coefs[1]*muh[2,]+coefs[3]*muh[4,]+coefs[4]*muh[5,]-(coefs[1]+coefs[3]+coefs[4]-1)*muh[1,])
-    mus_denom[,,14]<- mus_denom[,,14]+2*lambdas[10]*diag(1,nrow=dim_data)
-
-    mus_nom[15,]<-mus_nom[15,]+2*lambdas[11]*(coefs[2]*muh[3,]+coefs[3]*muh[4,]+coefs[4]*muh[5,]-(coefs[2]+coefs[3]+coefs[4]-1)*muh[1,])
-    mus_denom[,,15]<- mus_denom[,,15]+2*lambdas[11]*diag(1,nrow=dim_data)
-
-    mus_nom[16,]<-mus_nom[16,]+2*lambdas[12]*(coefs[1]*muh[2,]+coefs[2]*muh[3,]+coefs[3]*muh[4,]+coefs[4]*muh[5,]-(coefs[1]+coefs[2]+coefs[3]+coefs[4]-1)*muh[1,])
-    mus_denom[,,16]<- mus_denom[,,16]+2*lambdas[12]*diag(1,nrow=dim_data)
-
-    for (h in 1:cluster_num){
-      muh[h,]=mus_nom[h,]%*%solve(mus_denom[,,h])
-    }
-
-
-
-    ## for Sigmas
-    sigma_nom<-matrix(rep(0,dim_data^2),nrow=dim_data)
-    sigma_denom<-0
-    for (k in 1:cluster_num) {
-      for (g in 1:length(g_clusternum)){
-        sigma_nom<-sigma_nom+zi[g,k]*mg[g]*covg[,,g]+zi[g,k]*mg[g]*(mug[g,]-muh[k,])%*%(t(mug[g,]-muh[k,]))
-        sigma_denom<-sigma_denom+zi[g,k]*mg[g]
-      }
-      covh[,, k] <- sigma_nom/sigma_denom
-    }
-
-    # change the likelihood
-    change_ests<-c(change_ests,sum(apply(zi,1,function(x) log(sum(x)))))
-    ## stopping criteria
-    if(j>1){
-
-      if(sum(abs(muh-old_mu))<eps){break}
-    }
-
-    old_mu <- muh
-
-
-  }
-
-  return(list(zi,muh,pih))
+  return(exp_diff)
 }
 
 #' Internal Function 7
 #'
-#' This function merges 2-d and 3-target dPCR data
+#' This function calculates zi in E-step of EM algorithm
+#' @param g_clusternum cluster labels from base clustering 
+#' @param cluster_num The expected maximum number of clusters
+#' @param pih the probability of cluster g belonging at level l+1 to cluster h at level l
+#' @param muh the matrix of cluster centers at level l
+#' @param covh the covariance matrix of clusters at level l
+#' @param mg cluster sizes of base clustering result
+#' @param mug the matrix of cluster centers at level l+1
+#' @param covg the covariance matrix of clusters at level l+1
+#' @return zi for estep in EM algorithm
+#' @keywords internal
+estep <- function(g_clusternum,cluster_num,pih,muh,covh,mg,mug,covg){
+  
+  log_pih <- log(pih)
+  mug_t <- t(mug)
+  muh_t <- t(muh)
+  
+  zi <- matrix(0, nrow = length(g_clusternum), ncol = cluster_num)
+  # E step
+  for (g in seq_len(length(g_clusternum))) {
+    for (k in seq_len(cluster_num)) {
+      tmp_matrix <- compute_tmp_matrix(g, k, cluster_num, mg, log_pih, mug_t, muh_t, covh, covg)
+      inv_zi_tmp <- sum(tmp_matrix)
+      zi[g, k] <- 1 / inv_zi_tmp
+    }
+  }
+  return(zi)
+  
+}
+
+
+#' Internal Function 8
+#'
+#' This function calculates mu in M-step of EM algorithm
+#' @param zi the expected log-likelihood found on the E step
+#' @param g_clusternum cluster labels from base clustering 
+#' @param cluster_num The expected maximum number of clusters
+#' @param dim_data the dimension of the dataset
+#' @param weights combinations of coefficients of the cluster centers
+#' @param muh the matrix of cluster centers at level l
+#' @param covh the covariance matrix of clusters at level l
+#' @param mg cluster sizes of base clustering result
+#' @param mug the matrix of cluster centers at level l+1
+#' @param neg_assum the estimated cluster center of negative population
+#' @param lambdas The penalty terms for the deviation from the expected cluster centers. Higher \code{lambdas} penalizes the deviation more.
+#' @param coefs The coefficients to adjust for the expected cluster centers. The default is 1 which can be used for common assay designs and has
+#' to be modified for special assays such as competing assays.
+#' @return muh the cluster centers at level l in the EM algorithm
+#' @keywords internal
+mstep_mu<-function(zi,g_clusternum,dim_data,cluster_num,weights,muh,covh,mg,mug,neg_assum,lambdas,coefs){
+  # M step
+  mu_nom <- matrix(0, nrow = cluster_num, ncol = dim_data)
+  mu_denom<-array(0, dim = c(dim_data, dim_data, cluster_num))
+  
+  for (g in seq_along(g_clusternum)) {
+    for (k in seq_len(cluster_num)) {
+      cov_inv <- solve(covh[, , k])
+      mu_nom[k, ] <- mu_nom[k, ] + zi[g, k] * mg[g] * (mug[g, ] %*% cov_inv)
+      mu_denom[,,k] <- mu_denom[,,k] + zi[g, k] * mg[g] * cov_inv
+    }
+  }
+  
+  primary_seq<-seq(1,(log2(cluster_num)+1))
+  mus<-muh[1:(log2(cluster_num)+1),]
+  mus_nonprimary<-muh[(log2(cluster_num)+2):nrow(muh),]
+  
+  nonprimary_seq<-seq((log2(cluster_num)+2),cluster_num)
+  
+  for (i in primary_seq){
+    weights_other <- weights[,-i]%*%mus[-i,]-mus_nonprimary
+    mu_nom[i,] <- mu_nom[i,] - (2*lambdas[2:length(lambdas)]*t(weights[,i]))%*% weights_other
+    mu_denom[,,i] <- mu_denom[,,i] + ((2*lambdas[2:length(lambdas)]*t(weights[,i]))%*%weights[,i])[1,1]*diag(1,nrow=dim_data)
+  }
+  
+  mu_nom[1,] <- mu_nom[1,] + 2 * lambdas[1] * neg_assum
+  mu_denom[,,1] <- mu_denom[,,1] + 2 * lambdas[1] * diag(1, nrow = dim_data) 
+  
+  mu_nom[-(1:(log2(cluster_num)+1)),]<- mu_nom[-(1:(log2(cluster_num)+1)),] + 2*lambdas[2:length(lambdas)]*(weights%*%mus)
+  
+  diag_tmp<-array(0, dim = c(dim_data, dim_data, length(nonprimary_seq)))
+  for (j in seq_along(nonprimary_seq)) {
+    diag_tmp[,,j] <- diag(dim_data)  
+  }
+  
+  if (cluster_num==4){
+    mu_denom[,,-(1:(log2(cluster_num)+1))]<- mu_denom[,,-(1:(log2(cluster_num)+1))] + (2*lambdas[2:length(lambdas)]*diag(2))
+  }else{
+    mu_denom[,,-(1:(log2(cluster_num)+1))]<- mu_denom[,,-(1:(log2(cluster_num)+1))] + (2*lambdas[2:length(lambdas)]*diag_tmp)
+  }
+  
+  for (h in 1:cluster_num){
+    muh[h,]=mu_nom[h,]%*%solve(mu_denom[,,h])
+  }
+  
+  return(muh)
+}
+
+
+
+#' Internal Function 9
+#'
+#' This function calculates mu in M-step of EM algorithm
+#' @param zi the expected log-likelihood found on the E step
+#' @param g_clusternum cluster labels from base clustering 
+#' @param cluster_num The expected maximum number of clusters
+#' @param dim_data the dimension of the dataset
+#' @param muh the matrix of cluster centers at level l
+#' @param mg cluster sizes of base clustering result
+#' @param mug the matrix of cluster centers at level l+1
+#' @param covg the covariance matrix of clusters at level l+1
+#' @return covh the covariance matrix of clusters at level l in the EM algorithm
+#' @keywords internal
+mstep_cov<-function(cluster_num,dim_data,g_clusternum,zi,mg,covg,mug,muh){
+  # Update covariances
+  sigma_nom <- matrix(0, nrow = dim_data, ncol = dim_data)
+  sigma_denom <- 0
+  covh <- array(cov(mug), dim = c(dim_data, dim_data, cluster_num))
+  for (k in seq_len(cluster_num)) {
+    for (g in seq_len(length(g_clusternum))) {
+      sigma_nom <- sigma_nom + zi[g, k] * mg[g] * covg[, , g] + zi[g, k] * mg[g] * (mug[g, ] - muh[k, ]) %*% t(mug[g, ] - muh[k, ])
+      sigma_denom <- sigma_denom + zi[g, k] * mg[g]
+    }
+    covh[, , k] <- sigma_nom / sigma_denom
+  }
+  return(covh)
+}
+
+#' Internal Function 10
+#'
+#' This function merges the excess clusters given by the base clustering
 #' @param data A matrix or data frame of fluorescence intensities in each channel. Each row represents each partitions, and each column each channel.
 #' @param cluster_num The expected maximum number of clusters
+#' @param base_cluster base clustering results before merging
 #' @param eps the convergence threshold
 #' @param max_iter maximum number of iterations
 #' @param lambdas The penalty terms for the deviation from the expected cluster centers. Higher \code{lambdas} penalizes the deviation more.
@@ -651,164 +403,80 @@ HMM_merge_4d<-function(data,cluster_num,base_clust,eps=10^(-10),max_iter=1000,la
 #' to be modified for special assays such as competing assays.
 #' @return A list of membership probability, cluster center, merging probability
 #' @keywords internal
-HMM_merge_higher_order<-function(data,cluster_num,base_clust,eps=10^(-10),max_iter=1000,lambdas=rep(2,5),coefs=rep(1,3)) {
+HMM_merge <- function(data, cluster_num, base_clust, eps = 10^(-10), max_iter = 1000, lambdas = rep(2, 2), coefs = rep(1, 2)) {
+  init_results<-GMM_init(data, cluster_num, base_clust, coefs)
+  pih<-init_results[[1]]
+  muh<-init_results[[2]]
+  covh<-init_results[[3]]
+  g_clusternum<-init_results[[4]]
+  mg<-init_results[[5]]
+  mug<-init_results[[6]]
+  covg<-init_results[[7]]
+  weights<-init_results[[8]]
+  neg_assum<-init_results[[9]]
+  
+  dim_data <- ncol(data)
   change_ests=NULL
-  data<-as.matrix(data)
-  dim_data<-ncol(data)
-
-  pih = rep(1/cluster_num,cluster_num)
-  g_clusternum<-unique(base_clust$cluster)
-  mg<-table(base_clust$cluster)
-  mug<-base_clust$mu
-  covg <- array(0,dim=c(dim_data,dim_data,length(g_clusternum)))
-  for (i in 1:length(g_clusternum)){
-    tryCatch( {
-      covg[,,g_clusternum[i]] <- cov(data[base_clust$cluster==g_clusternum[i],])
-    }, error = function(e) {
-      covg[,,g_clusternum[i]] <<- diag(0.001,nrow=dim_data)
-    })
-  }
-
-  #initialization
-  ## find the negative population
-  min_val<-apply(data,2,min)
-  dist_orig<-apply(mug,1,function(x) {sqrt(sum((x-min_val)^2))})
-  neg_assum<-mug[which.min(dist_orig),]
-
-  muh<-matrix(0,nrow=cluster_num,ncol=dim_data)
-  muh[1,]<-neg_assum
-  muh[2,]<-c(0.25*min(mug[,1])+0.75*max(mug[,1]),neg_assum[2])
-  muh[3,]<-c(neg_assum[1],0.25*min(mug[,2])+0.75*max(mug[,2]))
-  muh[4,]<-c(0.5*(neg_assum[1]+muh[2,1]),0.5*(neg_assum[2]+muh[3,2]))
-  muh[5,]<-coefs[1]*muh[2,]+coefs[2]*muh[3,]+(1-coefs[1]-coefs[2])*muh[1,]
-  muh[6,]<-coefs[1]*muh[2,]+coefs[3]*muh[4,]+(1-coefs[1]-coefs[3])*muh[1,]
-  muh[7,]<-coefs[2]*muh[3,]+coefs[3]*muh[4,]+(1-coefs[2]-coefs[3])*muh[1,]
-  muh[8,]<-coefs[1]*muh[2,]+coefs[2]*muh[3,]+coefs[3]*muh[4,]+(1-coefs[1]-coefs[2]-coefs[3])*muh[1,]
-
-  covh <- array(cov(mug), dim = c(dim_data, dim_data, cluster_num))
-
-  zi<-matrix(0,nrow=length(g_clusternum), ncol=cluster_num)
-
-  ## start the EM algorithm
-
-  for (j in 1:max_iter){
-    if (j>=max_iter){
-      print("Warning: the algorithm fails to converge")
+  
+  
+  # Start the EM algorithm
+  for (j in seq_len(max_iter)) {
+    print(j)
+    if (j >= max_iter) {
+      message("Warning: the algorithm fails to converge")
     }
-    ## E step:
-    for (g in 1:length(g_clusternum)){
-      for (k in 1:cluster_num){
-        inv_zi_tmp<-0
-        for (l in 1:cluster_num){
-          tmp=exp(log(pih[l])-log(pih[k])+mg[g]*(dmvnorm(t(mug[g,]),t(muh[l,]),covh[,,l],log=TRUE)-0.5*tr(solve(covh[,,l])%*%covg[,,g])-dmvnorm(t(mug[g,]),t(muh[k,]),covh[,,k],log=TRUE)+0.5*tr(solve(covh[,,k])%*%covg[,,g])))
-          inv_zi_tmp=inv_zi_tmp+exp(log(pih[l])-log(pih[k])+mg[g]*(dmvnorm(t(mug[g,]),t(muh[l,]),covh[,,l],log=TRUE)-0.5*tr(solve(covh[,,l])%*%covg[,,g])-dmvnorm(t(mug[g,]),t(muh[k,]),covh[,,k],log=TRUE)+0.5*tr(solve(covh[,,k])%*%covg[,,g])))
-        }
-        zi[g,k]=1/inv_zi_tmp
-      }
-    }
-
-
-    ## M step:
+    
+    zi<-estep(g_clusternum,cluster_num,pih,muh,covh,mg,mug,covg)
+    
     pih = apply(zi,2,sum)/length(g_clusternum)
     pih[which(pih==0)]<-(10^(-10))
-    ## for the mus
-    mu1_nom<-c(0,0)
-    mu1_denom<-c(0,0)
-    mu2_nom<-c(0,0)
-    mu2_denom<-c(0,0)
-    mu3_nom<-c(0,0)
-    mu3_denom<-c(0,0)
-    mu4_nom<-c(0,0)
-    mu4_denom<-c(0,0)
-    mu5_nom<-c(0,0)
-    mu5_denom<-c(0,0)
-    mu6_nom<-c(0,0)
-    mu6_denom<-c(0,0)
-    mu7_nom<-c(0,0)
-    mu7_denom<-c(0,0)
-    mu8_nom<-c(0,0)
-    mu8_denom<-c(0,0)
-    for (g in 1:length(g_clusternum)){
-      mu1_nom<-mu1_nom+zi[g,1]*mg[g]*mug[g,]%*%solve(covh[,,1])
-      mu1_denom<-mu1_denom+zi[g,1]*mg[g]*solve(covh[,,1])
-
-      mu2_nom<-mu2_nom+zi[g,2]*mg[g]*mug[g,]%*%solve(covh[,,2])
-      mu2_denom<-mu2_denom+zi[g,2]*mg[g]*solve(covh[,,2])
-
-      mu3_nom<-mu3_nom+zi[g,3]*mg[g]*mug[g,]%*%solve(covh[,,3])
-      mu3_denom<-mu3_denom+zi[g,3]*mg[g]*solve(covh[,,3])
-
-      mu4_nom<-mu4_nom+zi[g,4]*mg[g]*mug[g,]%*%solve(covh[,,4])
-      mu4_denom<-mu4_denom+zi[g,4]*mg[g]*solve(covh[,,4])
-
-      mu5_nom<-mu5_nom+zi[g,5]*mg[g]*mug[g,]%*%solve(covh[,,5])
-      mu5_denom<-mu5_denom+zi[g,5]*mg[g]*solve(covh[,,5])
-
-      mu6_nom<-mu6_nom+zi[g,6]*mg[g]*mug[g,]%*%solve(covh[,,6])
-      mu6_denom<-mu6_denom+zi[g,6]*mg[g]*solve(covh[,,6])
-
-      mu7_nom<-mu7_nom+zi[g,7]*mg[g]*mug[g,]%*%solve(covh[,,7])
-      mu7_denom<-mu7_denom+zi[g,7]*mg[g]*solve(covh[,,7])
-
-      mu8_nom<-mu8_nom+zi[g,8]*mg[g]*mug[g,]%*%solve(covh[,,8])
-      mu8_denom<-mu8_denom+zi[g,8]*mg[g]*solve(covh[,,8])
+    
+    muh<-mstep_mu(zi,g_clusternum,dim_data,cluster_num,weights,muh,covh,mg,mug,neg_assum,lambdas,coefs)
+    
+    covh<-mstep_cov(cluster_num,dim_data,g_clusternum,zi,mg,covg,mug,muh)
+    
+      
+    # Change the likelihood
+    change_ests <- c(change_ests, sum(apply(zi, 1, function(x) log(sum(x)))))
+    
+    # Stopping criteria
+    if (j > 1) {
+      if (sum(abs(muh - old_mu)) < eps) break
     }
-    mu1_nom<-mu1_nom+2*lambdas[1]*neg_assum+2*lambdas[2]*(coefs[1]+coefs[2]-1)*(coefs[1]*muh[2,]+coefs[2]*muh[3,]-muh[5,])+2*lambdas[3]*(coefs[1]+coefs[3]-1)*(coefs[1]*muh[2,]+coefs[3]*muh[4,]-muh[6,])+2*lambdas[4]*(coefs[2]+coefs[3]-1)*(coefs[2]*muh[3,]+coefs[3]*muh[4,]-muh[7,])+2*lambdas[5]*(coefs[1]+coefs[2]+coefs[3]-1)*(coefs[1]*muh[2,]+coefs[2]*muh[3,]+coefs[3]*muh[4,]-muh[8,])
-    mu1_denom<-mu1_denom+2*lambdas[1]*diag(1,nrow=dim_data)+2*lambdas[2]*(coefs[1]+coefs[2]-1)^2*diag(1,nrow=dim_data)+2*lambdas[3]*(coefs[1]+coefs[3]-1)^2*diag(1,nrow=dim_data)+2*lambdas[4]*(coefs[2]+coefs[3]-1)^2*diag(1,nrow=dim_data)+2*lambdas[5]*(coefs[1]+coefs[2]+coefs[3]-1)^2*diag(1,nrow=dim_data)
-
-    mu2_nom<-mu2_nom+2*lambdas[2]*coefs[1]*((coefs[1]+coefs[2]-1)*muh[1,]+muh[5,]-coefs[2]*muh[3,])+2*lambdas[3]*coefs[1]*((coefs[1]+coefs[3]-1)*muh[1,]+muh[6,]-coefs[3]*muh[4,])+2*lambdas[5]*coefs[1]*(muh[8,]-coefs[2]*muh[3,]-coefs[3]*muh[4,]+(coefs[1]+coefs[2]+coefs[3]-1)*muh[1,])
-    mu2_denom<-mu2_denom+2*lambdas[2]*(coefs[1])^2*diag(1,nrow=dim_data)+2*lambdas[3]*(coefs[1])^2*diag(1,nrow=dim_data)+2*lambdas[5]*(coefs[1])^2*diag(1,nrow=dim_data)
-
-    mu3_nom<-mu3_nom+2*lambdas[2]*coefs[2]*((coefs[1]+coefs[2]-1)*muh[1,]+muh[5,]-coefs[1]*muh[2,])+2*lambdas[4]*coefs[2]*((coefs[2]+coefs[3]-1)*muh[1,]+muh[7,]-coefs[3]*muh[4,])+2*lambdas[5]*coefs[2]*(muh[8,]-coefs[1]*muh[2,]-coefs[3]*muh[4,]+(coefs[1]+coefs[2]+coefs[3]-1)*muh[1,])
-    mu3_denom<-mu3_denom+2*lambdas[2]*(coefs[2])^2*diag(1,nrow=dim_data)+2*lambdas[4]*(coefs[2])^2*diag(1,nrow=dim_data)+2*lambdas[5]*(coefs[2])^2*diag(1,nrow=dim_data)
-
-    mu4_nom<-mu4_nom+2*lambdas[3]*coefs[3]*((coefs[1]+coefs[3]-1)*muh[1,]+muh[6,]-coefs[1]*muh[2,])+2*lambdas[4]*coefs[3]*((coefs[2]+coefs[3]-1)*muh[1,]+muh[7,]-coefs[2]*muh[3,])+2*lambdas[5]*coefs[3]*(muh[8,]-coefs[1]*muh[2,]-coefs[2]*muh[3,]+(coefs[1]+coefs[2]+coefs[3]-1)*muh[1,])
-    mu4_denom<-mu4_denom+2*lambdas[3]*(coefs[3])^2*diag(1,nrow=dim_data)+2*lambdas[4]*(coefs[3])^2*diag(1,nrow=dim_data)+2*lambdas[5]*(coefs[3])^2*diag(1,nrow=dim_data)
-
-    mu5_nom<-mu5_nom+2*lambdas[2]*(coefs[1]*muh[2,]+coefs[2]*muh[3,]-(coefs[1]+coefs[2]-1)*muh[1,])
-    mu5_denom<-mu5_denom+2*lambdas[2]*diag(1,nrow=dim_data)
-
-    mu6_nom<-mu6_nom+2*lambdas[3]*(coefs[1]*muh[2,]+coefs[3]*muh[4,]-(coefs[1]+coefs[3]-1)*muh[1,])
-    mu6_denom<-mu6_denom+2*lambdas[3]*diag(1,nrow=dim_data)
-
-    mu7_nom<-mu7_nom+2*lambdas[4]*(coefs[2]*muh[3,]+coefs[3]*muh[4,]-(coefs[2]+coefs[3]-1)*muh[1,])
-    mu7_denom<-mu7_denom+2*lambdas[4]*diag(1,nrow=dim_data)
-
-    mu8_nom<-mu8_nom+2*lambdas[5]*(coefs[1]*muh[2,]+coefs[2]*muh[3,]+coefs[3]*muh[4,]-(coefs[1]+coefs[2]+coefs[3]-1)*muh[1,])
-    mu8_denom<-mu8_denom+2*lambdas[5]*diag(1,nrow=dim_data)
-
-    muh[1,]=mu1_nom%*%solve(mu1_denom)
-    muh[2,]=mu2_nom%*%solve(mu2_denom)
-    muh[3,]=mu3_nom%*%solve(mu3_denom)
-    muh[4,]=mu4_nom%*%solve(mu4_denom)
-    muh[5,]=mu5_nom%*%solve(mu5_denom)
-    muh[6,]=mu6_nom%*%solve(mu6_denom)
-    muh[7,]=mu7_nom%*%solve(mu7_denom)
-    muh[8,]=mu8_nom%*%solve(mu8_denom)
-
-    ## for Sigmas
-    sigma_nom<-matrix(rep(0,dim_data^2),nrow=dim_data)
-    sigma_denom<-0
-    for (k in 1:cluster_num) {
-      for (g in 1:length(g_clusternum)){
-        sigma_nom<-sigma_nom+zi[g,k]*mg[g]*covg[,,g]+zi[g,k]*mg[g]*(mug[g,]-muh[k,])%*%(t(mug[g,]-muh[k,]))
-        sigma_denom<-sigma_denom+zi[g,k]*mg[g]
-      }
-      covh[,, k] <- sigma_nom/sigma_denom
-    }
-
-    # change the likelihood
-    change_ests<-c(change_ests,sum(apply(zi,1,function(x) log(sum(x)))))
-    ## stopping criteria
-    if(j>1){
-
-      if(sum(abs(muh-old_mu))<eps){break}
-    }
-
+    
     old_mu <- muh
-
-
   }
+  
+  return(list(zi, muh, pih))
+}
 
-  return(list(zi,muh,pih))
+
+#' Internal Function 11
+#'
+#' This function outputs all combinations of primary targets
+#' @param cluster_num The expected maximum number of clusters
+#' @return A matrix of all combinations of primary targets
+#' @keywords internal
+
+cluster_selection<-function(cluster_num){
+  primary_tar<-log2(cluster_num)
+  all_combinations <- list()
+  mat_coef<-NULL
+  
+  comb_seq<-seq(1,primary_tar)
+  coef_tmp<-rep(0,primary_tar)
+  
+  for (i in comb_seq){
+    comb_tmp<-combn(1:primary_tar, i)
+    all_combinations[[i]] <- comb_tmp
+    comb_ncol<-ncol(comb_tmp)
+    for (j in seq_len(comb_ncol)){
+      mat_coef_tmp<-coef_tmp
+      mat_coef_tmp[comb_tmp[,j]]<-1
+      mat_coef<-rbind(mat_coef,mat_coef_tmp)
+    }
+  }
+  
+  mat_coef<-rbind(rep(0,primary_tar),mat_coef)
+  return(mat_coef)
 }

@@ -2,7 +2,7 @@
 % Please edit documentation in R/internal_functions.R
 \name{HMM_merge}
 \alias{HMM_merge}
-\title{Internal Function 4}
+\title{Internal Function 10}
 \usage{
 HMM_merge(
   data,
@@ -27,11 +27,13 @@ HMM_merge(
 
 \item{coefs}{The coefficients to adjust for the expected cluster centers. The default is 1 which can be used for common assay designs and has
 to be modified for special assays such as competing assays.}
+
+\item{base_cluster}{base clustering results before merging}
 }
 \value{
 A list of membership probability, cluster center, merging probability
 }
 \description{
-This function merges 2-d dPCR data
+This function merges the excess clusters given by the base clustering
 }
 \keyword{internal}

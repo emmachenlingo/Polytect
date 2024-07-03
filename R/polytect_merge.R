@@ -27,7 +27,7 @@
 #' hc_clusters <- cutree(hc, k = 6)
 #' polytect_merge(HR, 4, hc_clusters)
 #' @export
-polytect_merge<-function(data,cluster_num,base_clust,type="2color",lambdas=rep(2,12),coefs=rep(1,4)){
+polytect_merge<-function(data,cluster_num,base_clust,lambdas=rep(2,64-log2(64)),coefs=rep(1,6)){
   data_scaled<-apply(data,2,function(x) (x-min(x))/(max(x)-min(x)))
   data_input<-as.matrix(data_scaled)
   
@@ -41,17 +41,8 @@ polytect_merge<-function(data,cluster_num,base_clust,type="2color",lambdas=rep(2
   base_clust$mu<-as.matrix(cluster_centers)[,-1]
   
 
-  if(type=='2color'){
-    result<-HMM_merge(data_input,cluster_num=4,base_clust=base_clust,eps=10^(-10),max_iter=1000,lambdas=lambdas[1:2],coefs=coefs[1:2])
-  } else if(type=="2colorHO"){
-    result<-HMM_merge_higher_order(data_input,cluster_num=8,base_clust=base_clust,eps=10^(-10),max_iter=1000,lambdas=lambdas[1:5],coefs=coefs[1:3])
-  } else if(type=="3color"){
-    result<-HMM_merge_3d(data_input,cluster_num=8,base_clust=base_clust,eps=10^(-10),max_iter=1000,lambdas=lambdas[1:5],coefs=coefs[1:3])
-  } else if(type=="4color"){
-    result<-HMM_merge_4d(data_input,cluster_num=16,base_clust=base_clust,eps=10^(-10),max_iter=1000,lambdas=lambdas[1:12],coefs=coefs[1:4])
-  } else {
-    return(print("Warning: wrong type of data"))
-  }
+  result<-HMM_merge(data_input,cluster_num=cluster_num,base_clust=base_clust,eps=10^(-10),max_iter=1000,lambdas=lambdas[1:(cluster_num-log2(cluster_num))],coefs=coefs[1:log2(cluster_num)])
+  
   result_class<-apply(result[[1]],1,which.max)
   
   # Use the recode function from dplyr to update the 'group' column

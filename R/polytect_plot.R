@@ -11,14 +11,26 @@
 #' df_data<-polytect_clust(HR,4)
 #' polytect_plot(df_data)
 #' @export
-polytect_plot<-function(df_data){
+polytect_plot<-function(df_data, cluster_num, cluster_selected=TRUE){
   col_num<-ncol(df_data)
+  mat_select<-cluster_selection(cluster_num)
+  
   plots<-list()
   k=0
-  for (i in 1:(col_num-2)){
-    for (j in (i+1):(col_num-1)){
+  for (i in seq_len(col_num-2)){
+    col_seq<-seq(i+1,col_num-1)
+    for (j in col_seq){
       k=k+1
       df_data_tmp<-df_data[,c(i,j,col_num)]
+      if(cluster_selected & col_num>3){
+        if (col_num==4){
+          row_tmp<-which(mat_select[,-c(i,j)]==1)
+        } else{
+          row_tmp<-apply(mat_select[,-c(i,j)],2,function(x) which(x==1))
+        }
+        row_selected<-unique(row_tmp)
+        df_data_tmp<-df_data_tmp[!(df_data_tmp$cluster %in% row_selected),]
+      }
       x_col <- colnames(df_data_tmp)[1]
       y_col <- colnames(df_data_tmp)[2]
 
@@ -33,12 +45,10 @@ polytect_plot<-function(df_data){
                                                                                                                                 b = 20,  # Bottom margin
                                                                                                                                 l = 20))
 
-
-
     }
   }
 
-  for (i in 1:k) {
+  for (i in seq_len(k)) {
     plots[[i]] <- plots[[i]] +
       theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1),
             legend.position = "none",
@@ -47,5 +57,4 @@ polytect_plot<-function(df_data){
 
   p <- plot_grid(plotlist = plots, nrow = ceiling(k / 3), labels = LETTERS[1:k], label_size = 15, align = 'vh', hjust = 0)
   print(p)
-
 }

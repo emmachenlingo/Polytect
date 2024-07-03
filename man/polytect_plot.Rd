@@ -4,7 +4,7 @@
 \alias{polytect_plot}
 \title{Plotting function for clustering results}
 \usage{
-polytect_plot(df_data)
+polytect_plot(df_data, cluster_num, cluster_selected = TRUE)
 }
 \arguments{
 \item{df_data}{A data frame containing partition fluorescence intensities and corresponding cluster label. This can be the output
