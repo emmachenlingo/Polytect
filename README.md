@@ -65,7 +65,7 @@ ggplot(data=HR, aes(channel1, channel2,colour = factor(fp$peaks.cluster)))+ geom
 
 The main function that performs flowPeaks first, then merges the excess clusters.
 ```{r flowpeaks and merge,warning=FALSE, message=FALSE}
-result<-polytect_clust(data=HR,cluster_num=4,type="2color")
+result<-polytect_clust(data=HR,cluster_num=4)
 print(head(result))
 
 ggplot(data=HR, aes(channel1, channel2,colour = factor(result$cluster)))+ geom_point(size=0.9,show.legend = FALSE) +labs(x = "color 1", y = "color 2") +theme(text = element_text(size = 15), panel.grid.major = element_blank(),
@@ -105,7 +105,7 @@ ggplot(data=HR, aes(channel1, channel2,colour = factor(hc_clusters)))+ geom_poin
 hc_parse<-list()
 hc_parse$cluster<-hc_clusters
 
-result<-polytect_merge(data=HR,cluster_num=4,base_clust=hc_parse,type="2color")
+result<-polytect_merge(data=HR,cluster_num=4,base_clust=hc_parse)
 print(head(result))
 ```
 <div style="text-align: center;">
@@ -114,7 +114,7 @@ print(head(result))
 
 The clustering results can be visualized by 2-d plots.
 ```{r plot the data,warning=FALSE, message=FALSE}
-polytect_plot(result)
+polytect_plot(result,cluster_num=4)
 ```
 
 <div style="text-align: center;">
@@ -155,7 +155,7 @@ data_input<-as.matrix(data_scaled)
 fp<-flowPeaks(data_input)
 table(fp$peaks.cluster)
 df_data<-as.data.frame(cbind(BPV,cluster=fp$peaks.cluster))
-polytect_plot(df_data)
+polytect_plot(df_data,cluster_num=8)
 ```
 <div style="text-align: center;">
   <img src="vignettes/bpv_fp_cluster.png" width="50%" height="70%">
@@ -167,9 +167,9 @@ polytect_plot(df_data)
 
 Then the main function.
 ```{r 3d example polytect clust, warning=FALSE, message=FALSE}
-result<-polytect_clust(data=BPV,cluster_num=8,type="3color")
+result<-polytect_clust(data=BPV,cluster_num=8)
 table(result$cluster)
-polytect_plot(result)
+polytect_plot(result,cluster_num=8)
 ```
 <div style="text-align: center;">
   <img src="vignettes/bpv_polytect_cluster.png" width="50%" height="70%">
