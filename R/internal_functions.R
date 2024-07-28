@@ -122,7 +122,7 @@ fp_search <- function(data, cluster_num = 16) {
   # Set MBO control termination
   ctrl <- setMBOControlTermination(ctrl, iters = 4L)
   # Use 500 points in the focus search (should be sufficient for 2D)
-  ctrl <- setMBOControlInfill(ctrl, opt.focussearch.points = 500)
+  ctrl <- setMBOControlInfill(ctrl, opt.focussearch.points = 1000)
   # Create initial design
   des <- generateDesign(n = 15L, getParamSet(obj.fun.sil), fun = lhs::maximinLHS)
   # Start MBO
@@ -218,8 +218,10 @@ GMM_init <- function(data, cluster_num, base_clust, coefs) {
   } else if (cluster_num >= 16) {
     muh[4, 3] <-  0.75 * (min(mug[, 3]) + max(mug[, 3]))
     muh[5, 4] <-  0.75 * (min(mug[, 4]) + max(mug[, 4]))
-    if (cluster_num == 64) {
+    if (cluster_num>=32) {
       muh[6, 5] <-  0.75 * (min(mug[, 5]) + max(mug[, 5]))
+    }
+    if (cluster_num == 64) {
       muh[7, 6] <-  0.75 * (min(mug[, 6]) + max(mug[, 6]))
     }
   }

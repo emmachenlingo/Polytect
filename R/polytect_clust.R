@@ -34,6 +34,14 @@ polytect_clust<-function(data,cluster_num,fp_par="default",fp_optim=c(0.1,1,1.5)
   data_input<-as.matrix(data_scaled)
 
   fp_tmp<-flowPeaks(data_input,tol=0.1,h0=1,h=1.5)
+  
+  if(length(unique(fp_tmp$kmeans.cluster)) < cluster_num){
+    min_val <- apply(data_input, 2, min)
+    dist_orig <- apply(data_input, 1, function(x) sqrt(sum((x-min_val)^2)))
+    neg_ind <- which.min(dist_orig)
+    repeated_row <- data_input[rep(neg_ind, 2*nrow(data_input)), ]
+    data_input<-rbind(data_input,repeated_row)
+  }
 
   if (fp_par=="default"){
     fp<-fp_tmp
@@ -52,25 +60,20 @@ polytect_clust<-function(data,cluster_num,fp_par="default",fp_optim=c(0.1,1,1.5)
     df_data<-cbind(data,cluster=fp_tmp$peaks.cluster)
     return(df_data)
   }
-
   fp_parse<-list()
-  fp_parse$cluster<-fp$peaks.cluster
+  fp_parse$cluster<-fp$peaks.cluster[1:nrow(data_scaled)]
   fp_parse$mu<-fp$peaks$mu
   
-  
+  data_input<-data_input[1:nrow(data_scaled),]
   result<-HMM_merge(data_input,cluster_num=cluster_num,base_clust=fp_parse,eps=10^(-10),max_iter=1000,lambdas=lambdas[1:(cluster_num-log2(cluster_num))],coefs=coefs[1:log2(cluster_num)])
-  
   result_class<-apply(result[[1]],1,which.max)
-
   # Use the recode function from dplyr to update the 'group' column
   new_group = recode(fp_parse$cluster, !!!setNames(result_class, 1:length(g_clusternum)))
   df_data<-cbind(data,cluster=new_group)
-
   column_names <- colnames(df_data)
 
   # Rename the first n-1 columns
   new_column_names <- c(paste0("channel", 1:(length(column_names) - 1)), column_names[length(column_names)])
-
   # Assign the new column names to the dataframe
   colnames(df_data) <- new_column_names
 
