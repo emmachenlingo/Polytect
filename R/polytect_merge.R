@@ -12,6 +12,8 @@
 #' @import cowplot
 #' @import mlrMBO
 #' @import DiceKriging
+#' @import smoof
+#' @import ParamHelpers
 #' @param data A matrix of fluorescence intensities in each channel. Each row represents each partitions, and each column each channel.
 #' @param cluster_num The expected maximum number of clusters.
 #' @param type The assay design, including the number of channels and targets. \code{type}=c("2color",
