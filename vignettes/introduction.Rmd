@@ -30,6 +30,8 @@ To demonstrate the core functions of this package, we will use the HR digital PC
 library(Polytect)
 library(ggplot2)
 library(flowPeaks)
+library(ddPCRclust)
+
 data(HR)
 head(HR)
 ggplot(data=HR, aes(channel1, channel2))+ geom_point(size=0.9,show.legend = FALSE) +
@@ -125,7 +127,7 @@ sil_plot(result)
 
 There is a function to calculate the concentration of the targets.
 ```{r calculate the conc, warning=FALSE, message=FALSE}
-target_conc<-conc_cal(result,sampvol=0.91,volmix=20,voltemp=20,type="2color")
+target_conc<-conc_cal(result,cluster_num=4,sampvol=0.91,volmix=20,voltemp=20)
 print(target_conc)
 ```
 
@@ -147,6 +149,30 @@ polytect_plot(result,cluster_num = 8)
 ```
 Polytect does not change the clustering result of flowPeaks. What it did is relabeling.
 
+Comparison to the existing ddpcr package ddpcrclust
+```{r ddpcrclust, warning=FALSE, message=FALSE}
+exampleFiles <- list.files(paste0(find.package('ddPCRclust'), '/extdata'), full.names = TRUE)
+template <- readTemplate(exampleFiles[9])
+template$template[1,3]<-2
+template$template[1,c(6,7)]<-''
+data_list<-list()
+data_list$ids<-'B01'
+data_list$data$B01<-data.frame(Ch1.Amplitude=HR[,1],Ch2.Amplitude=HR[,2])  ## original  
+
+result <- ddPCRclust(data_list,template = template)
+
+ggplot(data=HR, aes(channel1, channel2,colour = factor(result$B01$data$Cluster)))+ geom_point(size=0.9,show.legend = FALSE) +labs(x = "color 1", y = "color 2") +theme(text = element_text(size = 15), panel.grid.major = element_blank(),
+                                                  panel.grid.minor = element_blank(),
+                                                  panel.background = element_blank(),
+                                                  axis.line = element_line(colour = "black"),
+                                                  plot.margin = margin(t = 20,  # Top margin
+                                                                       r = 20,  # Right margin
+                                                                       b = 20,  # Bottom margin
+                                                                       l = 20),
+                                                  axis.title.x = element_text(margin = margin(t = 20)),
+                                                  axis.title.y = element_text(margin = margin(r = 20)))
+
+```
 ## Session Information
 
 The following information was obtained from the R session that generated this vignette:
