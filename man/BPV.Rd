@@ -14,12 +14,13 @@ A data frame of fluorescence intensities in each channel. Each row represents ea
 }
 }
 \usage{
-BPV
+data(BPV)
 }
 \description{
 A 3-color dPCR data of bovine papilloma virus assay
 }
 \examples{
 data(BPV)
+head(BPV)
 }
 \keyword{datasets}

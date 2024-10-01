@@ -27,10 +27,6 @@ flowPeaks will be used. With "manual", you have to fill in \code{fp_optim}.}
 
 \item{coefs}{The coefficients to adjust for the expected cluster centers. The default is 1 which can be used for common assay designs and has
 to be modified for special assays such as competing assays.}
-
-\item{type}{The assay design, including the number of channels and targets. \code{type}=c("2color",
-"2colorHO","3color","4color"). "2color" is chosen when there are 2 colors and 2 targets. "2colorHO" means higher-order 2-color data (2 color and 3 targets). "3color" means
-3-color and 3-target. "4-color" is chosen when there are 4 colors.}
 }
 \value{
 A data frame containing the original fluorescence intensity and the cluster labels.
@@ -41,5 +37,5 @@ return a data frame of fluorescence intensities and partition labels.
 }
 \examples{
 data(HR)
-polytect_clust(HR, 4)
+head(polytect_clust(HR, 4))
 }

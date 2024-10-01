@@ -16,12 +16,13 @@ obvious multimodality.
 \url{https://pubmed.ncbi.nlm.nih.gov/37827643/}
 }
 \usage{
-MM
+data(MM)
 }
 \description{
 A multi-mode 2-color dPCR data of HIV gBlock sequences
 }
 \examples{
 data(MM)
+head(MM)
 }
 \keyword{datasets}

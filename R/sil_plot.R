@@ -29,3 +29,6 @@ sil_plot<-function(df_data){
               axis.title.y = element_text(margin = margin(r = 10)))
     
 }
+
+utils::globalVariables(c("cluster", "width"))
+

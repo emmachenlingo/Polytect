@@ -4,16 +4,22 @@ Version: 0.99.0
 Authors@R: 
     person("Yao", "Chen", , "emmachentar@live.com", role = c("aut", "cre"),
            comment = c(ORCID = "0000-0001-8172-3996"))
+Maintainer: Yao Chen <emmachentar@live.com>
 Description: Polytect is an advanced computational tool designed for the analysis of multi-color digital PCR data. It provides automatic clustering and labeling of partitions into distinct groups based on clusters first identified by the flowPeaks algorithm. Polytect is particularly useful for researchers in molecular biology and bioinformatics, enabling them to gain deeper insights into their experimental results through precise partition classification and data visualization.
 biocViews: ddPCR, Clustering, MultiChannel, Classification
-License: MIT
+License: Artistic-2.0
+URL: https://github.com/emmachenlingo/Polytect
+BugReports: https://github.com/emmachenlingo/Polytect/issues
 Encoding: UTF-8
 LazyData: false
 Roxygen: list(markdown = TRUE)
-RoxygenNote: 7.3.1
+RoxygenNote: 7.3.2
 Depends: 
-    R (>= 4.2.0)
-Imports: 
+    R (>= 4.4.0)
+Imports:
+    stats,
+    utils,
+    grDevices, 
     mvtnorm,
     sn,
     dplyr,
@@ -24,10 +30,14 @@ Imports:
     mlrMBO,
     DiceKriging,
     smoof,
-    ParamHelpers
+    ParamHelpers,
+    lhs,
+    rgenoud,
+    BiocManager
 Suggests: 
     testthat (>= 3.0.0),
     knitr,
-    rmarkdown
+    rmarkdown,
+    ddPCRclust
 VignetteBuilder: knitr
 Config/testthat/edition: 3

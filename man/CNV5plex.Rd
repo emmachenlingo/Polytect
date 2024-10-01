@@ -16,12 +16,13 @@ A data frame of fluorescence intensities in each channel. Each row represents ea
 }
 }
 \usage{
-CNV5plex
+data(CNV5plex)
 }
 \description{
 CNV 5-plex universal probes
 }
 \examples{
 data(CNV5plex)
+head(CNV5plex)
 }
 \keyword{datasets}

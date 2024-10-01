@@ -13,12 +13,13 @@ barely separable on x-axis.
 }
 }
 \usage{
-LR
+data(LR)
 }
 \description{
 A low-resolution 2-color dPCR data of development of genotyping assays for plants various
 }
 \examples{
 data(LR)
+head(LR)
 }
 \keyword{datasets}

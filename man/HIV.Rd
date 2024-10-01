@@ -18,12 +18,13 @@ A data frame of fluorescence intensities in each channel. Each row represents ea
 \url{https://www.biorxiv.org/content/10.1101/2023.08.18.553846v1}
 }
 \usage{
-HIV
+data(HIV)
 }
 \description{
 A 4-color dPCR data of intact HIV-1 proviruses
 }
 \examples{
 data(HIV)
+head(HIV)
 }
 \keyword{datasets}

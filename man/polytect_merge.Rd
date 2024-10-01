@@ -19,9 +19,10 @@ polytect_merge(
 
 \item{base_clust}{A list that contains partition labels given by initial clustering.}
 
-\item{type}{The assay design, including the number of channels and targets. \code{type}=c("2color",
-"2colorHO","3color","4color"). "2color" is chosen when there are 2 colors and 2 targets. "2colorHO" means higher-order 2-color data (2 color and 3 targets). "3color" means
-3-color and 3-target. "4-color" is chosen when there are 4 colors.}
+\item{lambdas}{The penalty terms for the deviation from the expected cluster centers. Higher \code{lambdas} penalizes the deviation more.}
+
+\item{coefs}{The coefficients to adjust for the expected cluster centers. The default is 1 which can be used for common assay designs and has
+to be modified for special assays such as competing assays.}
 }
 \value{
 A data frame containing the original fluorescence intensity and the cluster labels.
@@ -35,5 +36,7 @@ data(HR)
 dist_matrix <- dist(HR)
 hc <- hclust(dist_matrix, method = "ward.D2")
 hc_clusters <- cutree(hc, k = 6)
-polytect_merge(HR, 4, hc_clusters)
+base_clust<-list()
+base_clust$cluster<-hc_clusters
+head(polytect_merge(HR, 4, base_clust))
 }

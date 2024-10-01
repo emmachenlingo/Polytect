@@ -19,6 +19,8 @@ HMM_merge(
 
 \item{cluster_num}{The expected maximum number of clusters}
 
+\item{base_clust}{base clustering results before merging}
+
 \item{eps}{the convergence threshold}
 
 \item{max_iter}{maximum number of iterations}
@@ -27,8 +29,6 @@ HMM_merge(
 
 \item{coefs}{The coefficients to adjust for the expected cluster centers. The default is 1 which can be used for common assay designs and has
 to be modified for special assays such as competing assays.}
-
-\item{base_cluster}{base clustering results before merging}
 }
 \value{
 A list of membership probability, cluster center, merging probability

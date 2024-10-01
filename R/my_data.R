@@ -9,8 +9,10 @@
 #'   \item{channel1}{fluorescence intensities of color 1}
 #'   \item{channel2}{fluorescence intensities of color 2}
 #' }
+#' @usage data(HR)
 #' @examples
 #' data(HR)
+#' head(HR)
 #' @source \url{https://pubmed.ncbi.nlm.nih.gov/33992770/}
 "HR"
 
@@ -25,8 +27,10 @@
 #'   \item{channel1}{fluorescence intensities of color 1}
 #'   \item{channel2}{fluorescence intensities of color 2}
 #' }
+#' @usage data(MM)
 #' @examples
 #' data(MM)
+#' head(MM)
 #' @source \url{https://pubmed.ncbi.nlm.nih.gov/37827643/}
 "MM"
 
@@ -41,8 +45,10 @@
 #'   \item{channel1}{fluorescence intensities of color 1}
 #'   \item{channel2}{fluorescence intensities of color 2}
 #' }
+#' @usage data(LR)
 #' @examples
 #' data(LR)
+#' head(LR)
 "LR"
 
 
@@ -56,8 +62,10 @@
 #'   \item{channel1}{fluorescence intensities of color 1}
 #'   \item{channel2}{fluorescence intensities of color 2}
 #' }
+#' @usage data(CA)
 #' @examples
 #' data(CA)
+#' head(CA)
 "CA"
 
 
@@ -72,8 +80,10 @@
 #'   \item{channel2}{fluorescence intensities of color 2}
 #'   \item{channel3}{fluorescence intensities of color 3}
 #' }
+#' @usage data(BPV)
 #' @examples
 #' data(BPV)
+#' head(BPV)
 "BPV"
 
 
@@ -89,8 +99,10 @@
 #'   \item{channel3}{fluorescence intensities of color 3}
 #'   \item{channel4}{fluorescence intensities of color 4}
 #' }
+#' @usage data(HIV)
 #' @examples
 #' data(HIV)
+#' head(HIV)
 #' @source \url{https://www.biorxiv.org/content/10.1101/2023.08.18.553846v1}
 "HIV"
 
@@ -109,8 +121,10 @@
 #'   \item{channel5}{fluorescence intensities of color 5}
 
 #' }
+#' @usage data(CNV5plex)
 #' @examples
 #' data(CNV5plex)
+#' head(CNV5plex)
 "CNV5plex"
 
 
@@ -129,8 +143,10 @@
 #'   \item{channel6}{fluorescence intensities of color 6}
 
 #' }
+#' @usage data(CNV6plex)
 #' @examples
 #' data(CNV6plex)
+#' head(CNV6plex)
 "CNV6plex"
 
 

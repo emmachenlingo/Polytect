@@ -28,5 +28,5 @@ polytect_merge. It will give the target concentration as output.
 \examples{
 data(HR)
 df_data<-polytect_clust(HR,4)
-conc_cal(df_data)
+conc_cal(df_data,4)
 }

@@ -3,6 +3,9 @@
 #' This is the main function for clustering. The function will start with flowPeaks, then merge the excess clusters. It will
 #' return a data frame of fluorescence intensities and partition labels.
 #'
+#' @importFrom stats cov setNames
+#' @import utils
+#' @import grDevices
 #' @import flowPeaks
 #' @import ggplot2
 #' @import mvtnorm
@@ -14,11 +17,11 @@
 #' @import DiceKriging
 #' @import smoof
 #' @import ParamHelpers
+#' @import lhs
+#' @import rgenoud
+#' @importFrom BiocManager install
 #' @param data A matrix of fluorescence intensities in each channel. Each row represents each partitions, and each column each channel.
 #' @param cluster_num The expected maximum number of clusters.
-#' @param type The assay design, including the number of channels and targets. \code{type}=c("2color",
-#' "2colorHO","3color","4color"). "2color" is chosen when there are 2 colors and 2 targets. "2colorHO" means higher-order 2-color data (2 color and 3 targets). "3color" means
-#' 3-color and 3-target. "4-color" is chosen when there are 4 colors.
 #' @param fp_par The parameters for flowPeaks. \code{fp_par}=c("default","manual","auto"). When "default" is chosen, the default parameters of
 #' flowPeaks will be used. With "manual", you have to fill in \code{fp_optim}.
 #' @param fp_optim The paramters for flowPeaks that users have to fill in manually when \code{fp_par} is set at "manual".
@@ -29,7 +32,7 @@
 #' @return A data frame containing the original fluorescence intensity and the cluster labels.
 #' @examples
 #' data(HR)
-#' polytect_clust(HR, 4)
+#' head(polytect_clust(HR, 4))
 #' @export
 polytect_clust<-function(data,cluster_num,fp_par="default",fp_optim=c(0.1,1,1.5),lambdas=rep(2,64-log2(64)),coefs=rep(1,6)){
     data_scaled<-apply(data,2,function(x) (x-min(x))/(max(x)-min(x)))
@@ -70,7 +73,7 @@ polytect_clust<-function(data,cluster_num,fp_par="default",fp_optim=c(0.1,1,1.5)
     result<-HMM_merge(data_input,cluster_num=cluster_num,base_clust=fp_parse,eps=10^(-10),max_iter=1000,lambdas=lambdas[1:(cluster_num-log2(cluster_num))],coefs=coefs[1:log2(cluster_num)])
     result_class<-apply(result[[1]],1,which.max)
     # Use the recode function from dplyr to update the 'group' column
-    new_group = recode(fp_parse$cluster, !!!setNames(result_class, 1:length(g_clusternum)))
+    new_group <- recode(fp_parse$cluster, !!!setNames(result_class, 1:length(g_clusternum)))
     df_data<-cbind(data,cluster=new_group)
     column_names <- colnames(df_data)
     

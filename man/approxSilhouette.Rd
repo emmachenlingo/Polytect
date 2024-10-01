@@ -7,9 +7,9 @@
 approxSilhouette(x, clusters)
 }
 \arguments{
-\item{data}{A matrix of fluorescence intensities in each channel. Each row represents each partitions, and each column each channel.}
+\item{x}{A matrix of fluorescence intensities in each channel. Each row represents each partitions, and each column each channel.}
 
-\item{clustering}{cluster labels}
+\item{clusters}{cluster labels}
 }
 \value{
 A data frame of silhouette coefficients for each partition.

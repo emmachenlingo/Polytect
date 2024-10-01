@@ -16,12 +16,13 @@ good separation but some crosstalk.
 \url{https://pubmed.ncbi.nlm.nih.gov/33992770/}
 }
 \usage{
-HR
+data(HR)
 }
 \description{
 A high-resolution 2-color dPCR data of RPP30 genomic DNA assay
 }
 \examples{
 data(HR)
+head(HR)
 }
 \keyword{datasets}

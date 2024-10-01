@@ -13,12 +13,13 @@ data is not orthogonal.
 }
 }
 \usage{
-CA
+data(CA)
 }
 \description{
 2-color competitive assay of competition BRAF V600E assay with 1\% mutant
 }
 \examples{
 data(CA)
+head(CA)
 }
 \keyword{datasets}

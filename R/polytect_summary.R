@@ -23,7 +23,7 @@ polytect_summary<-function(df_data){
     
     # Group by 'group' and calculate the mean for each channel
     summary_df <- df_data %>%
-        group_by(cluster) %>%
+        group_by(.data$cluster) %>%
         summarise(across(all_of(channel_columns), mean, .names = "mean_{col}"),
                   cluster_size = n())
     

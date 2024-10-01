@@ -5,18 +5,21 @@
 #'
 #' @param df_data A data frame containing partition fluorescence intensities and corresponding cluster label. This can be the output
 #' of \code{polytect_clust} and \code{polytect_merge} or any data frame containing the above information.
+#' @param cluster_num the expected number of clusters
+#' @param cluster_selected Indicator of whether all the clusters are present in the plots. If TRUE, then only selected ones (the ones only positive  
+#' in the selected 2 dimensions) are shown. The default value is "TRUE".
 #' @return 2-color plots.
 #' @examples
 #' data(HR)
 #' df_data<-polytect_clust(HR,4)
-#' polytect_plot(df_data)
+#' polytect_plot(df_data,4)
 #' @export
 polytect_plot<-function(df_data, cluster_num, cluster_selected=TRUE){
     col_num<-ncol(df_data)
     mat_select<-cluster_selection(cluster_num)
     
     plots<-list()
-    k=0
+    k<-0
     for (i in seq_len(col_num-2)){
         col_seq<-seq(i+1,col_num-1)
         for (j in col_seq){
@@ -55,6 +58,6 @@ polytect_plot<-function(df_data, cluster_num, cluster_selected=TRUE){
                   plot.margin = unit(c(0.3, 0, 0, 0), "cm"))
     }
     
-    p <- plot_grid(plotlist = plots, nrow = ceiling(k / 3), labels = LETTERS[1:k], label_size = 15, align = 'vh', hjust = 0)
-    print(p)
+    p <- plot_grid(plotlist = plots, nrow = ceiling(k / 3), labels = LETTERS[seq_len(k)], label_size = 15, align = 'vh', hjust = 0)
+    p
 }

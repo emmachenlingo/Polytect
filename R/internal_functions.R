@@ -4,9 +4,10 @@
 #'
 #' @param data A data frame containing standardized partition fluorescence intensities and corresponding cluster label.
 #' @param clustering cluster labels
+#' @param plot TRUE or FALSE, whether a plot should be shown. The default value is "FALSE".
 #' @return A list of silhouette coefficients for each partition and the mean silhouette coefficients for each cluster.
 #' @keywords internal
-silhouette_coef<-function(data,clustering,plot=FALSE,plot_name='orig',sim='orig'){
+silhouette_coef<-function(data,clustering,plot=FALSE){
     # si <- silhouette(clustering, dist(data, "euclidean"))
     ndim<-ncol(data)
     si <- approxSilhouette(data[,-ndim], clustering)
@@ -20,7 +21,6 @@ silhouette_coef<-function(data,clustering,plot=FALSE,plot_name='orig',sim='orig'
     df_merged <- merge(x=sil_tab,y=clust_pos, by="cluster", all.x=TRUE)
     
     if(plot){
-        png(file=paste0(plot_name,sim,'.png'),width = 500,height = 300)
         p<-ggplot(data=data, aes(channel1, channel2, colour = factor(group)))+
             geom_point(size=0.7,show.legend = FALSE) +labs(x = "Green Channel",y='Red Channel')+theme(panel.grid.major = element_blank(),
                                                                                                       panel.grid.minor = element_blank(),
@@ -31,20 +31,21 @@ silhouette_coef<-function(data,clustering,plot=FALSE,plot_name='orig',sim='orig'
                                                                                                                            b = 20,  # Bottom margin
                                                                                                                            l = 20)) + annotate("text", x=df_merged$mean_x, y=df_merged$mean_y, label= df_merged$mean_sil)
         
-        print(p)
-        dev.off()
+        p
     }
     
     return(list(si,df_merged))
     
 }
 
+utils::globalVariables(c("cluster", "width", "channel1", "channel2", "group"))
+
 #' Internal Function 2
 #'
 #' This function outputs silhouette coefficients.
 #'
-#' @param data A matrix of fluorescence intensities in each channel. Each row represents each partitions, and each column each channel.
-#' @param clustering cluster labels
+#' @param x A matrix of fluorescence intensities in each channel. Each row represents each partitions, and each column each channel.
+#' @param clusters cluster labels
 #' @return A data frame of silhouette coefficients for each partition.
 #' @keywords internal
 approxSilhouette <- function(x, clusters) {
@@ -393,7 +394,7 @@ mstep_cov<-function(cluster_num,dim_data,g_clusternum,zi,mg,covg,mug,muh){
 #' This function merges the excess clusters given by the base clustering
 #' @param data A matrix or data frame of fluorescence intensities in each channel. Each row represents each partitions, and each column each channel.
 #' @param cluster_num The expected maximum number of clusters
-#' @param base_cluster base clustering results before merging
+#' @param base_clust base clustering results before merging
 #' @param eps the convergence threshold
 #' @param max_iter maximum number of iterations
 #' @param lambdas The penalty terms for the deviation from the expected cluster centers. Higher \code{lambdas} penalizes the deviation more.
@@ -437,11 +438,16 @@ HMM_merge <- function(data, cluster_num, base_clust, eps = 10^(-10), max_iter = 
         change_ests <- c(change_ests, sum(apply(zi, 1, function(x) log(sum(x)))))
         
         # Stopping criteria
-        if (j > 1) {
-            if (sum(abs(muh - old_mu)) < eps) break
+        if (j > 1 && sum(abs(muh - old_mu)) < eps) {
+            convergence <- TRUE
+            break
         }
         
         old_mu <- muh
+    }
+    
+    if (!convergence) {
+        message("Warning: the algorithm failed to converge after ", max_iter, " iterations.")
     }
     
     return(list(zi, muh, pih))

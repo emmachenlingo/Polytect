@@ -13,7 +13,7 @@
 #' @examples
 #' data(HR)
 #' df_data<-polytect_clust(HR,4)
-#' conc_cal(df_data)
+#' conc_cal(df_data,4)
 #' @export
 conc_cal<-function(df_data,cluster_num,sampvol=0.91,volmix=20,voltemp=20){
     mat_coef<-cluster_selection(cluster_num)
@@ -25,7 +25,7 @@ conc_cal<-function(df_data,cluster_num,sampvol=0.91,volmix=20,voltemp=20){
    
     targets<-(1000/sampvol * (-log(1-pos_pars/par_n)))*(volmix/voltemp)
 
-    df_conc<-data.frame(target=as.character(1:length(targets)),concentration=targets)
+    df_conc<-data.frame(target=as.character(seq_along(targets)),concentration=targets)
     
     return(df_conc)
 }

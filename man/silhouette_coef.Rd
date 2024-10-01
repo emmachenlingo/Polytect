@@ -4,18 +4,14 @@
 \alias{silhouette_coef}
 \title{Internal Function 1}
 \usage{
-silhouette_coef(
-  data,
-  clustering,
-  plot = FALSE,
-  plot_name = "orig",
-  sim = "orig"
-)
+silhouette_coef(data, clustering, plot = FALSE)
 }
 \arguments{
 \item{data}{A data frame containing standardized partition fluorescence intensities and corresponding cluster label.}
 
 \item{clustering}{cluster labels}
+
+\item{plot}{TRUE or FALSE, whether a plot should be shown. The default value is "FALSE".}
 }
 \value{
 A list of silhouette coefficients for each partition and the mean silhouette coefficients for each cluster.
