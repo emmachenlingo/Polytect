@@ -33,9 +33,6 @@ To demonstrate the core functions of this package, we will use the HR digital PC
 library(Polytect)
 library(ggplot2)
 library(flowPeaks)
-if (!requireNamespace("ddPCRclust", quietly = TRUE)) {
-    BiocManager::install("ddPCRclust")
-}
 library(ddPCRclust)
 
 data(HR)
