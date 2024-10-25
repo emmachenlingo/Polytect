@@ -6,19 +6,19 @@
 #' @importFrom stats cov setNames
 #' @import utils
 #' @import grDevices
-#' @import flowPeaks
+#' @importFrom flowPeaks flowPeaks
 #' @import ggplot2
-#' @import mvtnorm
-#' @import sn
+#' @importFrom mvtnorm dmvnorm
 #' @import dplyr
 #' @import tidyverse
-#' @import cowplot
-#' @import mlrMBO
-#' @import DiceKriging
-#' @import smoof
-#' @import ParamHelpers
-#' @import lhs
-#' @import rgenoud
+#' @importFrom cowplot plot_grid
+#' @importFrom mlrMBO makeMBOControl setMBOControlTermination setMBOControlInfill mbo
+#' @importFrom DiceKriging km
+#' @importFrom sn tr
+#' @importFrom smoof makeSingleObjectiveFunction
+#' @importFrom ParamHelpers makeParamSet generateDesign
+#' @importFrom lhs randomLHS maximinLHS
+#' @importFrom rgenoud genoud
 #' @importFrom BiocManager install
 #' @param data A matrix of fluorescence intensities in each channel. Each row represents each partitions, and each column each channel.
 #' @param cluster_num The expected maximum number of clusters.
@@ -45,23 +45,23 @@ polytect_merge<-function(data,cluster_num,base_clust,lambdas=rep(2,64-log2(64)),
     df_data<-as.data.frame(cbind(data_input,cluster=base_clust$cluster))
     cluster_centers <- df_data %>%
         group_by(.data$cluster) %>%
-        summarise(across(1:(ncol(df_data)-1), mean, na.rm = TRUE))
+        summarise(across(seq_len(ncol(df_data) - 1), mean, na.rm = TRUE))
     
     base_clust$mu<-as.matrix(cluster_centers)[,-1]
     
     
-    result<-HMM_merge(data_input,cluster_num=cluster_num,base_clust=base_clust,eps=10^(-10),max_iter=1000,lambdas=lambdas[1:(cluster_num-log2(cluster_num))],coefs=coefs[1:log2(cluster_num)])
+    result <- HMM_merge(data_input, cluster_num = cluster_num, base_clust = base_clust, eps = 10^(-10), max_iter = 1000, lambdas = lambdas[seq_len(cluster_num - log2(cluster_num))], coefs = coefs[seq_len(log2(cluster_num))])
     
     result_class<-apply(result[[1]],1,which.max)
     
     # Use the recode function from dplyr to update the 'group' column
-    new_group = recode(base_clust$cluster, !!!setNames(result_class, 1:length(g_clusternum)))
+    new_group <- recode(base_clust$cluster, !!!setNames(result_class, seq_along(g_clusternum)))
     df_data<-cbind(data,cluster=new_group)
     
     column_names <- colnames(df_data)
     
     # Rename the first n-1 columns
-    new_column_names <- c(paste0("channel", 1:(length(column_names) - 1)), column_names[length(column_names)])
+    new_column_names <- c(paste0("channel", seq_len(length(column_names) - 1)), column_names[length(column_names)])
     
     # Assign the new column names to the dataframe
     colnames(df_data) <- new_column_names

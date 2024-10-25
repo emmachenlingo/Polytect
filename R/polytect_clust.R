@@ -6,19 +6,19 @@
 #' @importFrom stats cov setNames
 #' @import utils
 #' @import grDevices
-#' @import flowPeaks
+#' @importFrom flowPeaks flowPeaks
 #' @import ggplot2
-#' @import mvtnorm
-#' @import sn
+#' @importFrom mvtnorm dmvnorm
 #' @import dplyr
 #' @import tidyverse
-#' @import cowplot
-#' @import mlrMBO
-#' @import DiceKriging
-#' @import smoof
-#' @import ParamHelpers
-#' @import lhs
-#' @import rgenoud
+#' @importFrom cowplot plot_grid
+#' @importFrom mlrMBO makeMBOControl setMBOControlTermination setMBOControlInfill mbo
+#' @importFrom DiceKriging km
+#' @importFrom smoof makeSingleObjectiveFunction
+#' @importFrom sn tr
+#' @importFrom ParamHelpers makeParamSet generateDesign
+#' @importFrom lhs randomLHS maximinLHS
+#' @importFrom rgenoud genoud
 #' @importFrom BiocManager install
 #' @param data A matrix of fluorescence intensities in each channel. Each row represents each partitions, and each column each channel.
 #' @param cluster_num The expected maximum number of clusters.
@@ -56,7 +56,7 @@ polytect_clust<-function(data,cluster_num,fp_par="default",fp_optim=c(0.1,1,1.5)
         hpo_result<-fp_search(data_input,cluster_num=cluster_num)
         fp<-flowPeaks(data_input,tol=hpo_result[1],h0=hpo_result[2],h=hpo_result[3])
     } else{
-        return(print("The parameters of flowPeaks were specified wrong."))
+        stop("The parameters of flowPeaks were specified wrong.")
     }
     g_clusternum<-unique(fp$peaks.cluster)
     g_clusternum_tmp<-unique(fp_tmp$peaks.cluster)
@@ -66,19 +66,19 @@ polytect_clust<-function(data,cluster_num,fp_par="default",fp_optim=c(0.1,1,1.5)
         return(df_data)
     }
     fp_parse<-list()
-    fp_parse$cluster<-fp$peaks.cluster[1:nrow(data_scaled)]
+    fp_parse$cluster<-fp$peaks.cluster[seq_len(nrow(data_scaled))]
     fp_parse$mu<-fp$peaks$mu
     
-    data_input<-data_input[1:nrow(data_scaled),]
-    result<-HMM_merge(data_input,cluster_num=cluster_num,base_clust=fp_parse,eps=10^(-10),max_iter=1000,lambdas=lambdas[1:(cluster_num-log2(cluster_num))],coefs=coefs[1:log2(cluster_num)])
+    data_input<-data_input[seq_len(nrow(data_scaled)),]
+    result <- HMM_merge(data_input, cluster_num = cluster_num, base_clust = fp_parse, eps = 10^(-10), max_iter = 1000, lambdas = lambdas[seq_len(cluster_num - log2(cluster_num))], coefs = coefs[seq_len(log2(cluster_num))])
     result_class<-apply(result[[1]],1,which.max)
     # Use the recode function from dplyr to update the 'group' column
-    new_group <- recode(fp_parse$cluster, !!!setNames(result_class, 1:length(g_clusternum)))
+    new_group <- recode(fp_parse$cluster, !!!setNames(result_class, seq_along(g_clusternum)))
     df_data<-cbind(data,cluster=new_group)
     column_names <- colnames(df_data)
     
     # Rename the first n-1 columns
-    new_column_names <- c(paste0("channel", 1:(length(column_names) - 1)), column_names[length(column_names)])
+    new_column_names <- c(paste0("channel", seq_len(length(column_names) - 1)), column_names[length(column_names)])
     # Assign the new column names to the dataframe
     colnames(df_data) <- new_column_names
     

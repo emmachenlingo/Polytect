@@ -23,7 +23,7 @@ polytect_plot<-function(df_data, cluster_num, cluster_selected=TRUE){
     for (i in seq_len(col_num-2)){
         col_seq<-seq(i+1,col_num-1)
         for (j in col_seq){
-            k=k+1
+            k<-k+1
             df_data_tmp<-df_data[,c(i,j,col_num)]
             if(cluster_selected & col_num>3){
                 if (col_num==4){

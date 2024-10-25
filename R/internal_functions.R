@@ -8,7 +8,6 @@
 #' @return A list of silhouette coefficients for each partition and the mean silhouette coefficients for each cluster.
 #' @keywords internal
 silhouette_coef<-function(data,clustering,plot=FALSE){
-    # si <- silhouette(clustering, dist(data, "euclidean"))
     ndim<-ncol(data)
     si <- approxSilhouette(data[,-ndim], clustering)
     
@@ -419,9 +418,9 @@ HMM_merge <- function(data, cluster_num, base_clust, eps = 10^(-10), max_iter = 
     
     # Start the EM algorithm
     for (j in seq_len(max_iter)) {
-        print(j)
+        message(j)
         if (j >= max_iter) {
-            message("Warning: the algorithm fails to converge")
+            message("Note: the algorithm fails to converge")
         }
         
         zi<-estep(g_clusternum,cluster_num,pih,muh,covh,mg,mug,covg)
@@ -447,7 +446,7 @@ HMM_merge <- function(data, cluster_num, base_clust, eps = 10^(-10), max_iter = 
     }
     
     if (!convergence) {
-        message("Warning: the algorithm failed to converge after ", max_iter, " iterations.")
+        message("Note: the algorithm failed to converge after ", max_iter, " iterations.")
     }
     
     return(list(zi, muh, pih))
