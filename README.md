@@ -11,9 +11,10 @@ We developed a novel method, `Polytect`, that relies on crude cluster results fr
 
 ```r
 #GitHub installation
-install.packages("devtools")
-library(devtools)
-install_github("emmachenlingo/Polytect")
+if (!requireNamespace("devtools", quietly = TRUE))
+    install.packages("devtools")
+
+devtools::install_github("emmachenlingo/Polytect")
 ```
 
 ## Examples
@@ -39,7 +40,7 @@ ggplot(data=HR, aes(channel1, channel2))+ geom_point(size=0.9,show.legend = FALS
 
 ```
 <div style="text-align: center;">
-  <img src="vignettes/demo_data.png" width="50%" height="70%">
+  <img src="inst/demo_data.png" width="50%" height="70%">
 </div>
 
 If we perform flowPeaks only, there will be more clusters than expected.
@@ -60,7 +61,7 @@ ggplot(data=HR, aes(channel1, channel2,colour = factor(fp$peaks.cluster)))+ geom
                                                   axis.title.y = element_text(margin = margin(r = 20)))
 ```
 <div style="text-align: center;">
-  <img src="vignettes/demo_data_fp.png" width="50%" height="70%">
+  <img src="inst/demo_data_fp.png" width="50%" height="70%">
 </div>
 
 The main function that performs flowPeaks first, then merges the excess clusters.
@@ -80,7 +81,7 @@ ggplot(data=HR, aes(channel1, channel2,colour = factor(result$cluster)))+ geom_p
                                                   axis.title.y = element_text(margin = margin(r = 20)))
 ```
 <div style="text-align: center;">
-  <img src="vignettes/demo_data_polytect.png" width="50%" height="70%">
+  <img src="inst/demo_data_polytect.png" width="50%" height="70%">
 </div>
 
 Or you can use any initial clustering results as an input to the polytect_merge function
@@ -109,7 +110,7 @@ result<-polytect_merge(data=HR,cluster_num=4,base_clust=hc_parse)
 print(head(result))
 ```
 <div style="text-align: center;">
-  <img src="vignettes/demo_data_hc.png" width="50%" height="70%">
+  <img src="inst/demo_data_hc.png" width="50%" height="70%">
 </div>
 
 The clustering results can be visualized by 2-d plots.
@@ -118,7 +119,7 @@ polytect_plot(result,cluster_num=4)
 ```
 
 <div style="text-align: center;">
-  <img src="vignettes/demo_data_hc_merge.png" width="50%" height="70%">
+  <img src="inst/demo_data_hc_merge.png" width="50%" height="70%">
 </div>
 
 You can also summarise the results, which will give you cluster centers, group sizes and silhouette coefficients for each group
@@ -127,7 +128,7 @@ result_summary<-polytect_summary(result)
 print(result_summary)
 ```
 <div style="text-align: center;">
-  <img src="vignettes/demo_data_hc_merge.png" width="50%" height="70%">
+  <img src="inst/demo_data_hc_merge.png" width="50%" height="70%">
 </div>
 
 You can also plot the individual silhouette coefficient in each cluster
@@ -135,7 +136,7 @@ You can also plot the individual silhouette coefficient in each cluster
 sil_plot(result)
 ```
 <div style="text-align: center;">
-  <img src="vignettes/demo_data_sil.png" width="50%" height="70%">
+  <img src="inst/demo_data_sil.png" width="50%" height="70%">
 </div>
 
 There is a function to calculate the concentration of the targets.
@@ -144,7 +145,7 @@ target_conc<-conc_cal(result,sampvol=0.91,volmix=20,voltemp=20,type="2color")
 print(target_conc)
 ```
 <div style="text-align: center;">
-  <img src="vignettes/demo_data_conc.png" width="50%" height="70%">
+  <img src="inst/demo_data_conc.png" width="50%" height="70%">
 </div>
 
 This package can also handle 3-up to 6-color dPCR data. We first perform flowPeaks only.
@@ -158,11 +159,11 @@ df_data<-as.data.frame(cbind(BPV,cluster=fp$peaks.cluster))
 polytect_plot(df_data,cluster_num=8)
 ```
 <div style="text-align: center;">
-  <img src="vignettes/bpv_fp_cluster.png" width="50%" height="70%">
+  <img src="inst/bpv_fp_cluster.png" width="50%" height="70%">
 </div>
 
 <div style="text-align: center;">
-  <img src="vignettes/bpv_fp.png" width="50%" height="70%">
+  <img src="inst/bpv_fp.png" width="50%" height="70%">
 </div>
 
 Then the main function.
@@ -172,11 +173,11 @@ table(result$cluster)
 polytect_plot(result,cluster_num=8)
 ```
 <div style="text-align: center;">
-  <img src="vignettes/bpv_polytect_cluster.png" width="50%" height="70%">
+  <img src="inst/bpv_polytect_cluster.png" width="50%" height="70%">
 </div>
 
 <div style="text-align: center;">
-  <img src="vignettes/bpv_polytect.png" width="50%" height="70%">
+  <img src="inst/bpv_polytect.png" width="50%" height="70%">
 </div>
 
 
