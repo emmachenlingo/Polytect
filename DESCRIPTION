@@ -1,6 +1,6 @@
 Package: Polytect
 Title: An R package for digital data clustering
-Version: 0.99.3
+Version: 0.99.4
 Authors@R: 
     person("Yao", "Chen", , "emmachentar@live.com", role = c("aut", "cre"),
            comment = c(ORCID = "0000-0001-8172-3996"))
