@@ -13,6 +13,7 @@
 #' @export
 polytect_summary<-function(df_data){
     # Identify the channel columns dynamically
+    check_polytect_summary(df_data)
     data_scaled<-apply(df_data[,-ncol(df_data)],2,function(x) (x-min(x))/(max(x)-min(x)))
     data_input<-as.matrix(data_scaled)
     df_data2<-data.frame(cbind(data_input,cluster=df_data$cluster))

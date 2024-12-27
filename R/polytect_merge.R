@@ -37,6 +37,7 @@
 #' head(polytect_merge(HR, 4, base_clust))
 #' @export
 polytect_merge<-function(data,cluster_num,base_clust,lambdas=rep(2,64-log2(64)),coefs=rep(1,6)){
+    check_polytect_merge(data,cluster_num,base_clust,lambdas,coefs)
     data_scaled<-apply(data,2,function(x) (x-min(x))/(max(x)-min(x)))
     data_input<-as.matrix(data_scaled)
     

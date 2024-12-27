@@ -482,3 +482,226 @@ cluster_selection<-function(cluster_num){
     mat_coef<-rbind(rep(0,primary_tar),mat_coef)
     return(mat_coef)
 }
+
+
+
+#' Internal Function 12
+#'
+#' This function checks all parameters in polytect_clust
+#' @param data A matrix of fluorescence intensities in each channel. Each row represents each partitions, and each column each channel.
+#' @param cluster_num The expected maximum number of clusters.
+#' @param fp_par The parameters for flowPeaks. \code{fp_par}=c("default","manual","auto"). When "default" is chosen, the default parameters of
+#' flowPeaks will be used. With "manual", you have to fill in \code{fp_optim}.
+#' @param fp_optim The paramters for flowPeaks that users have to fill in manually when \code{fp_par} is set at "manual".
+#' @param lambdas The penalty terms for the deviation from the expected cluster centers. Higher \code{lambdas} penalizes the deviation more.
+#' @param coefs The coefficients to adjust for the expected cluster centers. The default is 1 which can be used for common assay designs and has
+#' to be modified for special assays such as competing assays.
+#' @return stop message if parameter checking goes wrong
+#' @keywords internal
+
+
+check_polytect_clust<-function(data,cluster_num,fp_par,fp_optim,lambdas,coefs){
+    if (missing(data) || is.null(data)) {
+        stop("Input 'data' is missing or NULL.")
+    }
+    
+     if (!is.data.frame(data)) {
+        stop("Input 'data' must be a data frame.")
+    }
+    
+    if (missing(cluster_num) || is.null(cluster_num)) {
+        stop("Input 'cluster_num' is missing or NULL.")
+    }
+    
+    if (!cluster_num %% 1 == 0) {
+        stop("Input 'cluster_num' must be an integer.")
+    }
+    
+    if (!fp_par %in% c("default","manual","auto")) {
+        stop("fp_par must be 'default','manual', or 'auto'.")
+    }
+    
+    if ((!is.numeric(fp_optim)) || (!(length(fp_optim)==3))) {
+        stop("fp_optim must be a numeric vector of length 3.")
+    }
+    
+    if (!is.numeric(lambdas)) {
+        stop("lambdas must be a numeric vector.")
+    }
+    
+    if (!is.numeric(coefs)) {
+        stop("coefs must be a numeric vector.")
+    }
+}
+
+
+#' Internal Function 13
+#'
+#' This function checks all parameters in polytect_merge
+#' @param data A matrix of fluorescence intensities in each channel. Each row represents each partitions, and each column each channel.
+#' @param cluster_num The expected maximum number of clusters.
+#' @param base_clust A list that contains partition labels given by initial clustering.
+#' @param lambdas The penalty terms for the deviation from the expected cluster centers. Higher \code{lambdas} penalizes the deviation more.
+#' @param coefs The coefficients to adjust for the expected cluster centers. The default is 1 which can be used for common assay designs and has
+#' to be modified for special assays such as competing assays.
+#' @return stop message if parameter checking goes wrong
+#' @keywords internal
+
+
+check_polytect_merge<-function(data,cluster_num,base_clust,lambdas,coefs){
+    if (missing(data) || is.null(data)) {
+        stop("Input 'data' is missing or NULL.")
+    }
+    
+    if (!is.data.frame(data)) {
+        stop("Input 'data' must be a data frame.")
+    }
+    
+    if (missing(cluster_num) || is.null(cluster_num)) {
+        stop("Input 'cluster_num' is missing or NULL.")
+    }
+    
+    if (!cluster_num %% 1 == 0) {
+        stop("Input 'cluster_num' must be an integer.")
+    }
+    
+    if (missing(base_clust) || is.null(base_clust)) {
+        stop("Input 'base_clust' is missing or NULL.")
+    }
+    
+    if (!is.list(base_clust)) {
+        stop("base_clust must be a list containing mu and cluster information.")
+    }
+    
+    
+    if (!is.numeric(lambdas)) {
+        stop("lambdas has to be a numeric vector.")
+    }
+    
+    if (!is.numeric(coefs)) {
+        stop("coefs has to be a numeric vector.")
+    }
+}
+
+
+
+
+#' Internal Function 14
+#'
+#' This function checks all parameters in polytect_plot
+#' @param df_data A data frame containing partition fluorescence intensities and corresponding cluster label. This can be the output
+#' of \code{polytect_clust} and \code{polytect_merge} or any data frame containing the above information.
+#' @param cluster_num the expected number of clusters
+#' @param cluster_selected Indicator of whether all the clusters are present in the plots. If TRUE, then only selected ones (the ones only positive  
+#' in the selected 2 dimensions) are shown. The default value is "TRUE".
+#' @return stop message if parameter checking goes wrong
+#' @keywords internal
+
+check_polytect_plot<-function(df_data,cluster_num,cluster_selected){
+    if (missing(df_data) || is.null(df_data)) {
+        stop("Input 'df_data' is missing or NULL.")
+    }
+    
+    if (!is.data.frame(df_data)) {
+        stop("Input 'df_data' must be a data frame.")
+    }
+    
+    if (missing(cluster_num) || is.null(cluster_num)) {
+        stop("Input 'cluster_num' is missing or NULL.")
+    }
+    
+    if (!cluster_num %% 1 == 0) {
+        stop("Input 'cluster_num' must be an integer.")
+    }
+    
+    if(!is.logical(cluster_selected)) {
+        stop("Input 'cluster_selected' must be TRUE or FALSE.")
+        
+    }
+    
+}
+
+
+#' Internal Function 15
+#'
+#' This function checks all parameters in polytect_summary
+#' @param df_data A data frame containing partition fluorescence intensities and corresponding cluster label. This can be the output
+#' of \code{polytect_clust} and \code{polytect_merge} or any data frame containing the above information.
+#' @return stop message if parameter checking goes wrong
+#' @keywords internal
+
+check_polytect_summary<-function(df_data){
+    if (missing(df_data) || is.null(df_data)) {
+        stop("Input 'df_data' is missing or NULL.")
+    }
+    
+    if (!is.data.frame(df_data)) {
+        stop("Input 'df_data' must be a data frame.")
+    }
+    
+}
+
+
+#' Internal Function 16
+#'
+#' This function checks all parameters in conc_cal
+#' @param df_data A data frame containing partition fluorescence intensities and corresponding cluster label. This can be the output
+#' of \code{polytect_merge} or any data frame containing the above information.
+#' @param cluster_num the expected number of clusters
+#' @param sampvol The sample volume in microliters (µL)
+#' @param volmix The volume of the mixture
+#' @param voltemp The volume of the template
+#' @return stop message if parameter checking goes wrong
+#' @keywords internal
+
+check_conc_cal<-function(df_data,cluster_num,sampvol,volmix,voltemp){
+    if (missing(df_data) || is.null(df_data)) {
+        stop("Input 'df_data' is missing or NULL.")
+    }
+    
+    if (!is.data.frame(df_data)) {
+        stop("Input 'df_data' must be a data frame.")
+    }
+    
+    if (missing(cluster_num) || is.null(cluster_num)) {
+        stop("Input 'cluster_num' is missing or NULL.")
+    }
+    
+    if (!cluster_num %% 1 == 0) {
+        stop("Input 'cluster_num' must be an integer.")
+    }
+    
+    if (!is.numeric(sampvol)) {
+        stop("sampvol has to be a numeric variable.")
+    }
+    
+    if (!is.numeric(volmix)) {
+        stop("volmix has to be a numeric variable.")
+    }
+    
+    if (!is.numeric(voltemp)) {
+        stop("voltemp has to be a numeric variable.")
+    }
+    
+    
+}
+
+
+#' Internal Function 17
+#'
+#' This function checks all parameters in sil_plot
+#' @param df_data A data frame containing partition fluorescence intensities and corresponding cluster label. This can be the output
+#' of \code{polytect_clust} and \code{polytect_merge} or any data frame containing the above information.
+#' @return stop message if parameter checking goes wrong
+#' @keywords internal
+
+check_sil_plot<-function(df_data){
+    if (missing(df_data) || is.null(df_data)) {
+        stop("Input 'df_data' is missing or NULL.")
+    }
+    
+    if (!is.data.frame(df_data)) {
+        stop("Input 'df_data' must be a data frame.")
+    }
+    
+}

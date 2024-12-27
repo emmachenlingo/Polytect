@@ -35,9 +35,9 @@
 #' head(polytect_clust(HR, 4))
 #' @export
 polytect_clust<-function(data,cluster_num,fp_par="default",fp_optim=c(0.1,1,1.5),lambdas=rep(2,64-log2(64)),coefs=rep(1,6)){
+    check_polytect_clust(data,cluster_num,fp_par,fp_optim,lambdas,coefs)
     data_scaled<-apply(data,2,function(x) (x-min(x))/(max(x)-min(x)))
     data_input<-as.matrix(data_scaled)
-    
     fp_tmp<-flowPeaks(data_input,tol=0.1,h0=1,h=1.5)
     
     if(length(unique(fp_tmp$kmeans.cluster)) < cluster_num){

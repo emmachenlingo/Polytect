@@ -15,6 +15,7 @@
 #' polytect_plot(df_data,4)
 #' @export
 polytect_plot<-function(df_data, cluster_num, cluster_selected=TRUE){
+    check_polytect_plot(df_data, cluster_num, cluster_selected)
     col_num<-ncol(df_data)
     mat_select<-cluster_selection(cluster_num)
     

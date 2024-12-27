@@ -16,6 +16,7 @@
 #' conc_cal(df_data,4)
 #' @export
 conc_cal<-function(df_data,cluster_num,sampvol=0.91,volmix=20,voltemp=20){
+    check_conc_cal(df_data,cluster_num,sampvol,volmix,voltemp)
     mat_coef<-cluster_selection(cluster_num)
     summary_df<-polytect_summary(df_data)
     par_n<-sum(summary_df$cluster_size)
