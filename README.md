@@ -5,6 +5,7 @@ Digital PCR (dPCR) is a state-of-the-art quantification method of target nucleic
 
 We developed a novel method, `Polytect`, that relies on crude cluster results from flowPeaks, previously shown to offer good partition classification performance, and subsequently refines flowPeaks' results by cluster merging and automatic cluster labeling, exploiting the prior knowledge on cluster center locations.
 
+The following instructions are for the R package. You can also find the shiny app here: https://digpcr.shinyapps.io/Polytect/
 
 ## Installation
 `Polytect` can be downloaded from Github.
